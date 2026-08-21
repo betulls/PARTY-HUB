@@ -8,7 +8,7 @@ import { IMPOSTER_CATEGORIES } from './imposterWords';
 import SwipeCard from './SwipeCard';
 import AvatarBuilder from './AvatarBuilder';
 
-const BACKEND_URL = 'http://172.20.246.115:5184/gamehub';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `http://${window.location.hostname}:5184/gamehub`;
 
 const RANDOM_NICKS = [
   'KaosMakinesi', 'GölgeAjan', 'BalerinPanda', 'GeceKuşu',
