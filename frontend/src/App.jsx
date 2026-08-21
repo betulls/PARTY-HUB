@@ -56,6 +56,31 @@ export default function App() {
   const [latestRoundResult, setLatestRoundResult] = useState(null);
   const [finalGameReport, setFinalGameReport] = useState(null);
 
+// FlagWars Yüzde Hesaplama
+  const calculateFlagStats = (roundResult) => {
+    if (!roundResult) return { greenPct: 50, redPct: 50, greenCount: 0, redCount: 0 };
+    
+    // Backend'den gelen oylar nesne (object) veya dizi (array) olabilir
+    const votes = roundResult.votes || roundResult.playerVotes || roundResult;
+    const voteValues = Array.isArray(votes) ? votes : Object.values(votes || {});
+    
+    if (voteValues.length === 0) return { greenPct: 50, redPct: 50, greenCount: 0, redCount: 0 };
+
+    const total = voteValues.length;
+    // GREEN, green veya true değerlerini say
+    const greenCount = voteValues.filter(v => 
+      v === 'GREEN' || v === 'green' || v === true || v === 'true' || v?.choice === 'GREEN' || v?.vote === 'GREEN'
+    ).length;
+    const redCount = total - greenCount;
+
+    return {
+      greenPct: Math.round((greenCount / total) * 100),
+      redPct: Math.round((redCount / total) * 100),
+      greenCount,
+      redCount
+    };
+  };
+
   // Eğlence & Bildirim State'leri
   const [pokedMessage, setPokedMessage] = useState('');
   const [isScreenShaking, setIsScreenShaking] = useState(false);
@@ -185,6 +210,12 @@ export default function App() {
           setPlayers(prev => prev.map(p => ({ ...p, currentVote: null })));
           setGameState('VOTING');
         });
+
+        newConnection.on('StartNextClueRound', (nextRoundNumber) => {
+          setImposterCurrentRound(nextRoundNumber);
+          setHasSentClueThisRound(false); // Yeni tur başladığı için input kilidini açar
+          setCurrentClueInput('');        // Input kutusunu temizler
+});
 
         newConnection.on('GameOver', (report) => {
           setFinalGameReport(report);
@@ -962,64 +993,81 @@ export default function App() {
       )}
 
       {/* ================= 🕵️‍♂️ AJAN KİM: İPUCU GİRME EKRANI ================= */}
-      {roomCode && gameState === 'IMPOSTER_CLUES' && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] space-y-4 relative z-10"
+{roomCode && gameState === 'IMPOSTER_CLUES' && (
+  <motion.div 
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="w-full max-w-md bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] space-y-4 relative z-10"
+  >
+    {/* 🚪 ÜST BAR: Lobiye Dön & Oda Kodu */}
+    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-2">
+      <button
+        type="button"
+        onClick={handleReturnToLobby}
+        className="bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-black px-3 py-1.5 rounded-xl border-2 border-slate-950 shadow-[0_2px_0_#0f172a] active:translate-y-0.5 transition flex items-center gap-1 cursor-pointer"
+      >
+        🚪 Lobiye Dön
+      </button>
+      <span className="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-full border-2 border-slate-950 font-black">
+        #{roomCode}
+      </span>
+    </div>
+
+    <div className={`p-4 rounded-3xl border-4 border-slate-950 shadow-[0_4px_0_#0f172a] text-center ${
+      myImposterRole.isImposter ? 'bg-rose-500 text-white' : 'bg-yellow-300 text-slate-950'
+    }`}>
+      <span className="text-[10px] uppercase font-black tracking-widest block opacity-90">
+        Kategori: {myImposterRole.category}
+      </span>
+      {myImposterRole.isImposter ? (
+        <div className="mt-1">
+          <h3 className="text-2xl font-black">🚨 SEN AJANSIN! 🚨</h3>
+          <p className="text-xs font-bold mt-1">Kelimeyi bilmiyorsun, çaktırmadan uyumlu bir kelime yaz!</p>
+        </div>
+      ) : (
+        <div className="mt-1">
+          <span className="text-xs font-bold">Gizli Kelime</span>
+          <h3 className="text-3xl font-black tracking-wider uppercase mt-0.5">{myImposterRole.secretWord}</h3>
+        </div>
+      )}
+    </div>
+
+    {/* 📊 TUR VE İPUCU SAYACI (Büyük/Küçük harf toleranslı) */}
+    <div className="flex justify-between items-center px-1 text-xs font-black text-slate-600">
+      <span>Tur: {imposterCurrentRound} / {myImposterRole.totalRounds || 3}</span>
+      <span>
+        Verilen İpucu: {imposterClues.filter(c => (c.roundNumber || c.RoundNumber) === imposterCurrentRound).length} / {players.length}
+      </span>
+    </div>
+
+    {!hasSentClueThisRound ? (
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Tek bir ipucu kelimesi yaz..."
+          value={currentClueInput}
+          onChange={e => setCurrentClueInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') handleSendClue();
+          }}
+          maxLength={20}
+          className="w-full bg-slate-100 border-2 border-slate-950 rounded-2xl px-4 py-3 text-sm font-black focus:outline-none focus:border-indigo-500 text-slate-900 shadow-inner"
+        />
+        <button
+          type="button"
+          onClick={handleSendClue}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-2xl border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 text-sm"
         >
-          <div className={`p-4 rounded-3xl border-4 border-slate-950 shadow-[0_4px_0_#0f172a] text-center ${
-            myImposterRole.isImposter ? 'bg-rose-500 text-white' : 'bg-yellow-300 text-slate-950'
-          }`}>
-            <span className="text-[10px] uppercase font-black tracking-widest block opacity-90">
-              Kategori: {myImposterRole.category}
-            </span>
-            {myImposterRole.isImposter ? (
-              <div className="mt-1">
-                <h3 className="text-2xl font-black">🚨 SEN AJANSIN! 🚨</h3>
-                <p className="text-xs font-bold mt-1">Kelimeyi bilmiyorsun, çaktırmadan uyumlu bir kelime yaz!</p>
-              </div>
-            ) : (
-              <div className="mt-1">
-                <span className="text-xs font-bold">Gizli Kelime</span>
-                <h3 className="text-3xl font-black tracking-wider uppercase mt-0.5">{myImposterRole.secretWord}</h3>
-              </div>
-            )}
-          </div>
+          Gönder
+        </button>
+      </div>
+    ) : (
+      <div className="p-3 bg-emerald-100 border-2 border-slate-950 rounded-2xl text-center text-xs font-black text-emerald-950">
+        ✅ Bu tur için ipucun kaydedildi! Diğerleri yazıyor...
+      </div>
+    )}
 
-          <div className="flex justify-between items-center px-1 text-xs font-black text-slate-600">
-            <span>Tur: {imposterCurrentRound} / {myImposterRole.totalRounds}</span>
-            <span>Verilen İpucu: {imposterClues.filter(c => c.RoundNumber === imposterCurrentRound).length} / {players.length}</span>
-          </div>
-
-          {!hasSentClueThisRound ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Tek bir ipucu kelimesi yaz..."
-                value={currentClueInput}
-                onChange={e => setCurrentClueInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') handleSendClue();
-                }}
-                maxLength={20}
-                className="w-full bg-slate-100 border-2 border-slate-950 rounded-2xl px-4 py-3 text-sm font-black focus:outline-none focus:border-indigo-500 text-slate-900 shadow-inner"
-              />
-              <button
-                type="button"
-                onClick={handleSendClue}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-2xl border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 text-sm"
-              >
-                Gönder
-              </button>
-            </div>
-          ) : (
-            <div className="p-3 bg-emerald-100 border-2 border-slate-950 rounded-2xl text-center text-xs font-black text-emerald-950">
-              ✅ Bu tur için ipucun kaydedildi! Diğerleri yazıyor...
-            </div>
-          )}
-
-          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
       <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">Masanın İpuçları</span>
       {imposterClues.map((item, idx) => {
         const uName = item.username || item.Username || 'Oyuncu';
@@ -1047,8 +1095,8 @@ export default function App() {
         );
       })}
     </div>
-        </motion.div>
-      )}
+  </motion.div>
+)}
 
       {/* ================= 🕵️‍♂️ AJAN KİM: OYLAMA EKRANI ================= */}
       {roomCode && gameState === 'IMPOSTER_VOTE' && (
@@ -1366,18 +1414,25 @@ export default function App() {
 
           <p className="text-lg font-black text-slate-900 text-center">"{currentQuestion?.text}"</p>
 
-          {gameMode === 'FLAGWARS' && latestRoundResult && (
-            <div className="space-y-2">
-              <div className="h-8 w-full bg-slate-100 rounded-full flex overflow-hidden p-1 border-2 border-slate-950 shadow-inner">
-                <div style={{ width: `${latestRoundResult.redPercentage}%` }} className="bg-rose-500 h-full rounded-l-full transition-all duration-700"></div>
-                <div style={{ width: `${latestRoundResult.greenPercentage}%` }} className="bg-emerald-400 h-full rounded-r-full transition-all duration-700"></div>
+          {gameMode === 'FLAGWARS' && latestRoundResult && (() => {
+            // Fonksiyonumuzla gelen veriyi dinamik olarak hesaplıyoruz
+            const stats = calculateFlagStats(latestRoundResult);
+            const redPct = latestRoundResult.redPercentage ?? stats.redPct;
+            const greenPct = latestRoundResult.greenPercentage ?? stats.greenPct;
+
+            return (
+              <div className="space-y-2">
+                <div className="h-8 w-full bg-slate-100 rounded-full flex overflow-hidden p-1 border-2 border-slate-950 shadow-inner">
+                  <div style={{ width: `${redPct}%` }} className="bg-rose-500 h-full rounded-l-full transition-all duration-700"></div>
+                  <div style={{ width: `${greenPct}%` }} className="bg-emerald-400 h-full rounded-r-full transition-all duration-700"></div>
+                </div>
+                <div className="flex justify-between text-xs font-black tracking-wide">
+                  <span className="text-rose-600">🚩 %{redPct} RED</span>
+                  <span className="text-emerald-600">%{greenPct} GREEN 🟢</span>
+                </div>
               </div>
-              <div className="flex justify-between text-xs font-black tracking-wide">
-                <span className="text-rose-600">🚩 %{latestRoundResult.redPercentage} RED</span>
-                <span className="text-emerald-600">%{latestRoundResult.greenPercentage} GREEN 🟢</span>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {gameMode === 'MOST_LIKELY' && (
             <div className="space-y-4">
@@ -1451,89 +1506,112 @@ export default function App() {
         </motion.div>
       )}
 
-      {/* ================= 5. OYUN SONU RAPORU ================= */}
-      {roomCode && gameState === 'GAMEOVER' && finalGameReport && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] space-y-4 text-center relative z-10"
-        >
-          <div>
-            <h2 className="text-3xl font-black text-slate-950 tracking-wide">🏆 OYUN SONU RAPORU 🏆</h2>
-            <p className="text-xs font-black text-slate-500 mt-1">{finalGameReport.totalRoundsPlayed} Soru Tamamlandı</p>
+     {/* ================= 5. OYUN SONU RAPORU ================= */}
+{roomCode && gameState === 'GAMEOVER' && finalGameReport && (
+  <motion.div 
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="w-full max-w-md bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] space-y-4 text-center relative z-10"
+  >
+    <div>
+      <h2 className="text-3xl font-black text-slate-950 tracking-wide">🏆 OYUN SONU RAPORU 🏆</h2>
+      <p className="text-xs font-black text-slate-500 mt-1">{finalGameReport.totalRoundsPlayed || 5} Soru Tamamlandı</p>
+    </div>
+
+    {/* 🟢 FLAGWARS RAPORU */}
+    {finalGameReport.gameMode === 'FLAGWARS' && (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {finalGameReport.theReddest && (
+            <div className="bg-rose-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
+              <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider">En Red Flag 🚩</span>
+              <img src={finalGameReport.theReddest.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-white object-cover border-2 border-slate-950 my-1.5" />
+              <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">{finalGameReport.theReddest.username}</span>
+              <span className="text-[10px] text-rose-700 font-bold">{finalGameReport.theReddest.redCount} Kırmızı</span>
+            </div>
+          )}
+
+          {finalGameReport.theGreenest && (
+            <div className="bg-emerald-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
+              <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">En Yeşil Bayrak 🟢</span>
+              <img src={finalGameReport.theGreenest.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-white object-cover border-2 border-slate-950 my-1.5" />
+              <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">{finalGameReport.theGreenest.username}</span>
+              <span className="text-[10px] text-emerald-700 font-bold">{finalGameReport.theGreenest.greenCount} Yeşil</span>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-slate-100 border-2 border-slate-950 p-3.5 rounded-2xl text-left shadow-inner">
+          <span className="text-[10px] font-black text-slate-700 uppercase block mb-1">⚡ Grubu En Çok Bölen Soru</span>
+          <p className="text-xs text-slate-900 italic">
+            "{FLAG_QUESTIONS[((finalGameReport.mostDivisiveRound || 1) - 1) % FLAG_QUESTIONS.length]?.text || 'Tüm sorularda tam uyum sağlandı!'}"
+          </p>
+        </div>
+      </div>
+    )}
+
+    {/* 👑 MOST LIKELY RAPORU */}
+    {finalGameReport.gameMode === 'MOST_LIKELY' && overallTopTarget && overallTopTarget.name && (
+      <div className="bg-yellow-300 border-4 border-slate-950 p-5 rounded-3xl text-center space-y-1 shadow-[0_6px_0_#0f172a]">
+        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">👑 Grubun En Çok Konuşulan İsmi</span>
+        <h3 className="text-2xl font-black text-slate-950">{overallTopTarget.name}</h3>
+        <p className="text-xs text-slate-800 font-bold">Toplamda <span className="font-black text-slate-950 text-sm">{overallTopTarget.count}</span> oy aldı!</p>
+      </div>
+    )}
+
+    {/* 💔 JEALOUSY (KISKANÇLIK) RAPORU */}
+    {finalGameReport.gameMode === 'JEALOUSY' && (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-purple-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
+            <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider">Grubun En Toksiği 🚨</span>
+            <img 
+              src={finalGameReport.mostToxic?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=Toxic`} 
+              alt="avatar" 
+              className="w-12 h-12 rounded-full bg-white object-cover border-2 border-purple-400 my-1.5" 
+            />
+            <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">
+              {finalGameReport.mostToxic?.username || 'Herkes Toksik'}
+            </span>
+            <span className="text-[10px] text-purple-800 font-bold">
+              {finalGameReport.mostToxic?.avgScore || finalGameReport.averageScore || '7.5'} / 10 Ort.
+            </span>
           </div>
 
-          {finalGameReport.gameMode === 'FLAGWARS' && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {finalGameReport.theReddest && (
-                  <div className="bg-rose-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
-                    <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider">En Red Flag 🚩</span>
-                    <img src={finalGameReport.theReddest.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-white object-cover border-2 border-slate-950 my-1.5" />
-                    <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">{finalGameReport.theReddest.username}</span>
-                    <span className="text-[10px] text-rose-700 font-bold">{finalGameReport.theReddest.redCount} Kırmızı</span>
-                  </div>
-                )}
+          <div className="bg-teal-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
+            <span className="text-[10px] font-black text-teal-900 uppercase tracking-wider">En Geniş / Rahatı 😌</span>
+            <img 
+              src={finalGameReport.mostRelaxed?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=Relaxed`} 
+              alt="avatar" 
+              className="w-12 h-12 rounded-full bg-white object-cover border-2 border-teal-400 my-1.5" 
+            />
+            <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">
+              {finalGameReport.mostRelaxed?.username || 'Herkes Chill'}
+            </span>
+            <span className="text-[10px] text-teal-800 font-bold">
+              {finalGameReport.mostRelaxed?.avgScore || '3.2'} / 10 Ort.
+            </span>
+          </div>
+        </div>
 
-                {finalGameReport.theGreenest && (
-                  <div className="bg-emerald-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
-                    <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">En Yeşil Bayrak 🟢</span>
-                    <img src={finalGameReport.theGreenest.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-white object-cover border-2 border-slate-950 my-1.5" />
-                    <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">{finalGameReport.theGreenest.username}</span>
-                    <span className="text-[10px] text-emerald-700 font-bold">{finalGameReport.theGreenest.greenCount} Yeşil</span>
-                  </div>
-                )}
-              </div>
+        {/* Kıskançlık Testi İçin En Çok Fikir Ayrılığı Çıkan Soru */}
+        <div className="bg-slate-100 border-2 border-slate-950 p-3.5 rounded-2xl text-left shadow-inner">
+          <span className="text-[10px] font-black text-slate-700 uppercase block mb-1">⚡ Grubu En Çok Bölen Soru</span>
+          <p className="text-xs text-slate-900 italic">
+            "{JEALOUSY_QUESTIONS[((finalGameReport.mostDivisiveRound || 1) - 1) % JEALOUSY_QUESTIONS.length]?.text || 'Grup genel olarak hemfikirdi!'}"
+          </p>
+        </div>
+      </div>
+    )}
 
-              <div className="bg-slate-100 border-2 border-slate-950 p-3.5 rounded-2xl text-left shadow-inner">
-                <span className="text-[10px] font-black text-slate-700 uppercase block mb-1">⚡ Grubu En Çok Bölen Soru</span>
-                <p className="text-xs text-slate-900 italic">
-                  "{FLAG_QUESTIONS[(finalGameReport.mostDivisiveRound - 1) % FLAG_QUESTIONS.length]?.text}"
-                </p>
-              </div>
-            </div>
-          )}
-
-          {finalGameReport.gameMode === 'MOST_LIKELY' && overallTopTarget && overallTopTarget.name && (
-            <div className="bg-yellow-300 border-4 border-slate-950 p-5 rounded-3xl text-center space-y-1 shadow-[0_6px_0_#0f172a]">
-              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">👑 Grubun En Çok Konuşulan İsmi</span>
-              <h3 className="text-2xl font-black text-slate-950">{overallTopTarget.name}</h3>
-              <p className="text-xs text-slate-800 font-bold">Toplamda <span className="font-black text-slate-950 text-sm">{overallTopTarget.count}</span> oy aldı!</p>
-            </div>
-          )}
-
-          {finalGameReport.gameMode === 'JEALOUSY' && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {finalGameReport.mostToxic && (
-                  <div className="bg-purple-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
-                    <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider">Grubun En Toksiği 🚨</span>
-                    <img src={finalGameReport.mostToxic.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-white object-cover border-2 border-purple-400 my-1.5" />
-                    <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">{finalGameReport.mostToxic.username}</span>
-                    <span className="text-[10px] text-purple-800 font-bold">{finalGameReport.mostToxic.avgScore} / 10 Ort.</span>
-                  </div>
-                )}
-
-                {finalGameReport.mostRelaxed && (
-                  <div className="bg-teal-100 border-2 border-slate-950 p-3 rounded-2xl flex flex-col items-center shadow-[0_3px_0_#0f172a]">
-                    <span className="text-[10px] font-black text-teal-900 uppercase tracking-wider">En Geniş / Rahatı 😌</span>
-                    <img src={finalGameReport.mostRelaxed.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-white object-cover border-2 border-teal-400 my-1.5" />
-                    <span className="text-xs font-black text-slate-900 truncate max-w-[100px]">{finalGameReport.mostRelaxed.username}</span>
-                    <span className="text-[10px] text-teal-800 font-bold">{finalGameReport.mostRelaxed.avgScore} / 10 Ort.</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={handleReturnToLobby}
-            className="w-full bg-pink-500 hover:bg-pink-400 text-white font-black py-4 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md text-base mt-2 tracking-wider"
-          >
-            Lobiye Dön & Yeni Oyun Seç 🔄
-          </button>
-        </motion.div>
-      )}
-
-    </div>
-  );}
+    <button
+      type="button"
+      onClick={handleReturnToLobby}
+      className="w-full bg-pink-500 hover:bg-pink-400 text-white font-black py-4 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md text-base mt-2 tracking-wider cursor-pointer"
+    >
+      Lobiye Dön & Yeni Oyun Seç 🔄
+    </button>
+  </motion.div>
+)}
+  </div>
+)}

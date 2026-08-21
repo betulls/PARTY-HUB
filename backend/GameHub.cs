@@ -172,7 +172,7 @@ namespace flagwarsbackend;
         }
 
         // 7. 🕵️‍♂️ Ajan Kim İpucu Gönderme
-        public async Task SubmitImposterClue(string roomCode, string clueText)
+public async Task SubmitImposterClue(string roomCode, string clueText)
 {
     if (!Rooms.TryGetValue(roomCode, out var room)) return;
     var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
@@ -180,25 +180,24 @@ namespace flagwarsbackend;
 
     string cleanedClue = clueText.Trim();
 
-    // 🎯 AJAN KELİMEYİ DOĞRUDAN BİLDİ Mİ?
+    // 🎯 1. AJAN KELİMEYİ DOĞRUDAN BİLDİ Mİ?
     if (player.ConnectionId == room.ImposterConnectionId && 
         string.Equals(cleanedClue, room.ImposterSecretWord, StringComparison.OrdinalIgnoreCase))
     {
-        // Ajan kelimeyi tahmin etti, oyunu anında kazanır!
         await Clients.Group(roomCode).SendAsync("ImposterGameOver", new
         {
             secretWord = room.ImposterSecretWord,
             imposterName = player.Username,
             imposterAvatar = player.Avatar,
             votes = new List<object>(),
-            status = "IMPOSTER_GUESSED", // Özel Zafer Durumu
+            status = "IMPOSTER_GUESSED",
             imposterVoteCount = 0,
             totalVotes = room.Players.Count
         });
         return;
     }
 
-    // Normal ipucu akışı devam eder...
+    // 🎯 2. İPUCUNU LİSTEYE EKLE
     room.ImposterClues.Add(new ImposterClue 
     { 
         Username = player.Username, 
@@ -207,10 +206,29 @@ namespace flagwarsbackend;
         RoundNumber = room.ImposterCurrentRound 
     });
 
+    // Anlık olarak masadaki herkese güncel ipuçlarını gönder
     await Clients.Group(roomCode).SendAsync("UpdateImposterClues", room.ImposterClues);
 
-    // Tur tamamlama / Oylamaya geçiş kontrolleri...
+    // 🎯 BU TURDAKİ TÜM OYUNCULAR İPUCU VERDİ Mİ?
+    int currentRoundClueCount = room.ImposterClues.Count(c => c.RoundNumber == room.ImposterCurrentRound);
+
+    if (currentRoundClueCount >= room.Players.Count)
+    {
+        // 3 Tur tamamlanmadıysa bir sonraki tura geç
+        if (room.ImposterCurrentRound < 3)
+        {
+            room.ImposterCurrentRound++;
+            await Clients.Group(roomCode).SendAsync("StartNextClueRound", room.ImposterCurrentRound);
+        }
+        else
+        {
+            // 3 Tur bitti -> Frontend'in beklediği oylama sinyalini gönder!
+            room.GameState = "IMPOSTER_VOTE";
+            await Clients.Group(roomCode).SendAsync("ImposterStartVoting");
+        }
+    }
 }
+
 
         // 8. Oy Verme (Tüm Oyunlar İçin)
         public async Task SubmitVote(string roomCode, string choice)
