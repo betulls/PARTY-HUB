@@ -56,31 +56,43 @@ export default function App() {
   const [latestRoundResult, setLatestRoundResult] = useState(null);
   const [finalGameReport, setFinalGameReport] = useState(null);
 
-// FlagWars Yüzde Hesaplama
-  const calculateFlagStats = (roundResult) => {
-    if (!roundResult) return { greenPct: 50, redPct: 50, greenCount: 0, redCount: 0 };
-    
-    // Backend'den gelen oylar nesne (object) veya dizi (array) olabilir
-    const votes = roundResult.votes || roundResult.playerVotes || roundResult;
-    const voteValues = Array.isArray(votes) ? votes : Object.values(votes || {});
-    
-    if (voteValues.length === 0) return { greenPct: 50, redPct: 50, greenCount: 0, redCount: 0 };
+const calculateFlagStats = (resultData) => {
+  // 1. resultData ile gelen oyları al, parametre yoksa currentVotes'a bak
+  const votes = resultData?.votes || resultData?.Votes || resultData?.roundVotes || currentVotes || [];
 
-    const total = voteValues.length;
-    // GREEN, green veya true değerlerini say
-    const greenCount = voteValues.filter(v => 
-      v === 'GREEN' || v === 'green' || v === true || v === 'true' || v?.choice === 'GREEN' || v?.vote === 'GREEN'
-    ).length;
-    const redCount = total - greenCount;
+  if (!votes || votes.length === 0) {
+    // Eğer doğrudan yüzde geldiyse onu kullan
+    const r = resultData?.redPercentage ?? resultData?.RedPercentage ?? 0;
+    const g = resultData?.greenPercentage ?? resultData?.GreenPercentage ?? 100;
+    return { redPercent: r, greenPercent: g, redPct: r, greenPct: g, redCount: 0, greenCount: 0 };
+  }
 
-    return {
-      greenPct: Math.round((greenCount / total) * 100),
-      redPct: Math.round((redCount / total) * 100),
-      greenCount,
-      redCount
-    };
+  // 2. Kırmızı ve Yeşil oyları filtrele
+  const redCount = votes.filter(v => {
+    const val = v.vote ?? v.Vote ?? v;
+    return val === false || val === 'RED' || val === 'Red' || val === 'red';
+  }).length;
+
+  const greenCount = votes.filter(v => {
+    const val = v.vote ?? v.Vote ?? v;
+    return val === true || val === 'GREEN' || val === 'Green' || val === 'green';
+  }).length;
+
+  const total = redCount + greenCount;
+  if (total === 0) return { redPercent: 50, greenPercent: 50, redPct: 50, greenPct: 50, redCount: 0, greenCount: 0 };
+
+  const redPercent = Math.round((redCount / total) * 100);
+  const greenPercent = 100 - redPercent;
+
+  return { 
+    redPercent, 
+    greenPercent, 
+    redPct: redPercent, 
+    greenPct: greenPercent, 
+    redCount, 
+    greenCount 
   };
-
+};
   // Eğlence & Bildirim State'leri
   const [pokedMessage, setPokedMessage] = useState('');
   const [isScreenShaking, setIsScreenShaking] = useState(false);
@@ -368,10 +380,19 @@ export default function App() {
   };
 
   const handleFlagVote = async (choice) => {
-    if (hasVotedThisRound) return;
-    setHasVotedThisRound(true);
-    await connection.invoke('SubmitVote', roomCode, choice);
-  };
+  if (hasVotedThisRound) return;
+  setHasVotedThisRound(true);
+
+  // 🎯 Gelen değeri kesin olarak 'GREEN' veya 'RED' stringine çeviriyoruz
+  let formattedChoice = 'RED';
+  if (choice === true || choice === 'GREEN' || choice === 'green' || choice === 'Green') {
+    formattedChoice = 'GREEN';
+  } else if (choice === false || choice === 'RED' || choice === 'red' || choice === 'Red') {
+    formattedChoice = 'RED';
+  }
+
+  await connection.invoke('SubmitVote', roomCode, formattedChoice);
+};
 
   const handleTargetVote = async (targetUsername) => {
     if (hasVotedThisRound) return;
@@ -1415,24 +1436,28 @@ export default function App() {
           <p className="text-lg font-black text-slate-900 text-center">"{currentQuestion?.text}"</p>
 
           {gameMode === 'FLAGWARS' && latestRoundResult && (() => {
-            // Fonksiyonumuzla gelen veriyi dinamik olarak hesaplıyoruz
-            const stats = calculateFlagStats(latestRoundResult);
-            const redPct = latestRoundResult.redPercentage ?? stats.redPct;
-            const greenPct = latestRoundResult.greenPercentage ?? stats.greenPct;
+  const redPct = latestRoundResult.redPercentage ?? latestRoundResult.RedPercentage ?? 50;
+  const greenPct = latestRoundResult.greenPercentage ?? latestRoundResult.GreenPercentage ?? (100 - redPct);
 
-            return (
-              <div className="space-y-2">
-                <div className="h-8 w-full bg-slate-100 rounded-full flex overflow-hidden p-1 border-2 border-slate-950 shadow-inner">
-                  <div style={{ width: `${redPct}%` }} className="bg-rose-500 h-full rounded-l-full transition-all duration-700"></div>
-                  <div style={{ width: `${greenPct}%` }} className="bg-emerald-400 h-full rounded-r-full transition-all duration-700"></div>
-                </div>
-                <div className="flex justify-between text-xs font-black tracking-wide">
-                  <span className="text-rose-600">🚩 %{redPct} RED</span>
-                  <span className="text-emerald-600">%{greenPct} GREEN 🟢</span>
-                </div>
-              </div>
-            );
-          })()}
+  return (
+    <div className="space-y-2 mt-3">
+      <div className="h-8 w-full bg-slate-100 rounded-full flex overflow-hidden p-1 border-2 border-slate-950 shadow-inner">
+        <div 
+          style={{ width: `${redPct}%` }} 
+          className="bg-rose-500 h-full rounded-l-full transition-all duration-700"
+        />
+        <div 
+          style={{ width: `${greenPct}%` }} 
+          className="bg-emerald-400 h-full rounded-r-full transition-all duration-700"
+        />
+      </div>
+      <div className="flex justify-between text-xs font-black tracking-wide px-1">
+        <span className="text-rose-600">🚩 %{redPct} RED</span>
+        <span className="text-emerald-600">%{greenPct} GREEN 🟢</span>
+      </div>
+    </div>
+  );
+})()}
 
           {gameMode === 'MOST_LIKELY' && (
             <div className="space-y-4">

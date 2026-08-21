@@ -45,35 +45,40 @@ namespace flagwarsbackend;
             return roomCode;
         }
 
-        // 2. Odaya Katılma
-        public async Task<bool> JoinRoom(string roomCode, string username, string avatar)
-        {
-            roomCode = roomCode.ToUpper();
-            if (!Rooms.TryGetValue(roomCode, out var room))
-            {
-                return false;
-            }
+       // 2. Odaya Katılma
+public async Task<bool> JoinRoom(string roomCode, string username, string avatar)
+{
+    roomCode = roomCode.ToUpper();
+    if (!Rooms.TryGetValue(roomCode, out var room))
+    {
+        return false;
+    }
 
-            var player = new Player
-            {
-                ConnectionId = Context.ConnectionId,
-                Username = username,
-                Avatar = avatar,
-                IsHost = false
-            };
+    // 🛑 AYNI KULLANICI VEYA ESKİ BAĞLANTI VARSA TEMİZLE
+    room.Players.RemoveAll(p => p.Username == username || p.ConnectionId == Context.ConnectionId);
 
-            room.Players.Add(player);
-            await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
-            await Clients.Group(roomCode).SendAsync("UpdatePlayers", room.Players);
-            await Clients.Caller.SendAsync("GameModeChanged", new
-            {
-                gameMode = room.GameMode,
-                subMode = room.SubMode,
-                questionCount = room.QuestionCount
-            });
+    var player = new Player
+    {
+        ConnectionId = Context.ConnectionId,
+        Username = username,
+        Avatar = avatar,
+        IsHost = false
+    };
 
-            return true;
-        }
+    room.Players.Add(player);
+    await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
+    await Clients.Group(roomCode).SendAsync("UpdatePlayers", room.Players);
+    await Clients.Caller.SendAsync("GameModeChanged", new
+    {
+        gameMode = room.GameMode,
+        subMode = room.SubMode,
+        questionCount = room.QuestionCount
+    });
+
+    return true;
+}
+
+
 
         // 3. Odadan Ayrılma
         public async Task LeaveRoom(string roomCode)
@@ -362,67 +367,172 @@ public async Task SubmitImposterClue(string roomCode, string clueText)
             }
         }
 
-        public override async Task OnDisconnectedAsync(Exception? exception)
+        // 🔌 Bağlantısı Kopan Oyuncuyu Odalardan Temizle
+public override async Task OnDisconnectedAsync(Exception? exception)
+{
+    foreach (var roomEntry in Rooms.ToList())
+    {
+        var room = roomEntry.Value;
+        var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+
+        if (player != null)
         {
-            foreach (var kvp in Rooms.ToList())
+            room.Players.Remove(player);
+
+            if (room.Players.Count == 0)
             {
-                var room = kvp.Value;
-                var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
-                if (player != null)
-                {
-                    await LeaveRoom(room.RoomCode);
-                    break;
-                }
+                Rooms.Remove(roomEntry.Key);
             }
-            await base.OnDisconnectedAsync(exception);
+            else
+            {
+                if (player.IsHost)
+                {
+                    var newHost = room.Players.First();
+                    newHost.IsHost = true;
+                    room.HostConnectionId = newHost.ConnectionId;
+                    await Clients.Group(roomEntry.Key).SendAsync("HostChanged", newHost.Username);
+                }
+                await Clients.Group(roomEntry.Key).SendAsync("UpdatePlayers", room.Players);
+            }
         }
+    }
+
+    await base.OnDisconnectedAsync(exception);
+}
 
         // --- YARDIMCI METODLAR ---
         private RoundResult CalculateRoundResult(Room room)
+{
+    var voteList = room.Votes.Select(kv =>
+    {
+        var p = room.Players.FirstOrDefault(pl => pl.ConnectionId == kv.Key);
+        return new VoteEntry
         {
-            var voteList = room.Votes.Select(kv =>
+            Username = p?.Username ?? "Bilinmiyor",
+            Avatar = p?.Avatar ?? "",
+            Choice = kv.Value
+        };
+    }).ToList();
+
+    var result = new RoundResult
+    {
+        RoundIndex = room.CurrentQuestionIndex,
+        Votes = voteList,
+        SecretWord = room.ImposterSecretWord
+    };
+
+    if (room.GameMode == "FLAGWARS")
+    {
+        // 🚩 Gelen oyları büyük/küçük harf veya boolean fark etmeksizin say
+        int redCount = voteList.Count(v => 
+            string.Equals(v.Choice, "RED", StringComparison.OrdinalIgnoreCase) || 
+            v.Choice == "false" || 
+            v.Choice == "0"
+        );
+
+        int greenCount = voteList.Count(v => 
+            string.Equals(v.Choice, "GREEN", StringComparison.OrdinalIgnoreCase) || 
+            v.Choice == "true" || 
+            v.Choice == "1"
+        );
+
+        int total = voteList.Count;
+
+        result.RedPercentage = total > 0 ? (int)Math.Round((double)redCount / total * 100) : 50;
+        result.GreenPercentage = total > 0 ? 100 - result.RedPercentage : 50;
+    }
+    else if (room.GameMode == "JEALOUSY")
+    {
+        double avg = voteList.Count > 0 ? voteList.Average(v => double.TryParse(v.Choice, out var val) ? val : 5) : 5;
+        result.AverageScore = Math.Round(avg, 1);
+    }
+
+    return result;
+}
+
+private object GenerateFinalReport(Room room)
+{
+    if (room.GameMode == "FLAGWARS")
+    {
+        // 🚩 Her oyuncunun toplam RED ve GREEN oy sayılarını hesapla
+        var playerStats = room.Players.Select(p =>
+        {
+            int redCount = 0;
+            int greenCount = 0;
+
+            foreach (var round in room.History)
             {
-                var p = room.Players.FirstOrDefault(pl => pl.ConnectionId == kv.Key);
-                return new VoteEntry
+                var vote = round.Votes?.FirstOrDefault(v => v.Username == p.Username);
+                if (vote != null)
                 {
-                    Username = p?.Username ?? "Bilinmiyor",
-                    Avatar = p?.Avatar ?? "",
-                    Choice = kv.Value
-                };
-            }).ToList();
+                    string c = vote.Choice?.ToUpper() ?? "";
+                    if (c == "RED" || c == "FALSE" || c == "0") redCount++;
+                    else if (c == "GREEN" || c == "TRUE" || c == "1") greenCount++;
+                }
+            }
 
-            var result = new RoundResult
+            return new
             {
-                RoundIndex = room.CurrentQuestionIndex,
-                Votes = voteList,
-                SecretWord = room.ImposterSecretWord
+                username = p.Username,
+                avatar = p.Avatar,
+                redCount = redCount,
+                greenCount = greenCount
             };
+        }).ToList();
 
-            if (room.GameMode == "FLAGWARS")
-            {
-                int redCount = voteList.Count(v => v.Choice == "RED");
-                int greenCount = voteList.Count(v => v.Choice == "GREEN");
-                int total = voteList.Count;
+        var theReddest = playerStats.OrderByDescending(p => p.redCount).FirstOrDefault() ?? playerStats.FirstOrDefault();
+        var theGreenest = playerStats.OrderByDescending(p => p.greenCount).FirstOrDefault() ?? playerStats.LastOrDefault();
 
-                result.RedPercentage = total > 0 ? (int)Math.Round((double)redCount / total * 100) : 0;
-                result.GreenPercentage = total > 0 ? 100 - result.RedPercentage : 0;
-            }
-            else if (room.GameMode == "JEALOUSY")
-            {
-                double avg = voteList.Count > 0 ? voteList.Average(v => double.TryParse(v.Choice, out var val) ? val : 5) : 5;
-                result.AverageScore = Math.Round(avg, 1);
-            }
-
-            return result;
-        }
-
-        private GameFinalReport GenerateFinalReport(Room room)
+        return new
         {
-            return new GameFinalReport
+            gameMode = "FLAGWARS",
+            totalRoundsPlayed = room.History.Count,
+            theReddest = theReddest,
+            theGreenest = theGreenest,
+            mostDivisiveRound = 1
+        };
+    }
+    else if (room.GameMode == "JEALOUSY")
+    {
+        // 💔 Kıskançlık / Toksiklik Raporu
+        var playerStats = room.Players.Select(p =>
+        {
+            var scores = new List<double>();
+            foreach (var round in room.History)
             {
-                GameMode = room.GameMode,
-                TotalRoundsPlayed = room.History.Count,
-                History = room.History
+                var vote = round.Votes?.FirstOrDefault(v => v.Username == p.Username);
+                if (vote != null && double.TryParse(vote.Choice, out double val))
+                {
+                    scores.Add(val);
+                }
+            }
+
+            double avg = scores.Count > 0 ? scores.Average() : 5.0;
+            return new
+            {
+                username = p.Username,
+                avatar = p.Avatar,
+                avgScore = Math.Round(avg, 1)
             };
-        }
+        }).ToList();
+
+        var mostToxic = playerStats.OrderByDescending(p => p.avgScore).FirstOrDefault() ?? playerStats.FirstOrDefault();
+        var mostRelaxed = playerStats.OrderBy(p => p.avgScore).FirstOrDefault() ?? playerStats.LastOrDefault();
+
+        return new
+        {
+            gameMode = "JEALOUSY",
+            totalRoundsPlayed = room.History.Count,
+            mostToxic = mostToxic,
+            mostRelaxed = mostRelaxed,
+            mostDivisiveRound = 1
+        };
+    }
+
+    return new
+    {
+        gameMode = room.GameMode,
+        totalRoundsPlayed = room.History.Count
+    };
+}
     }
