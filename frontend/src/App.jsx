@@ -23,6 +23,8 @@ export default function App() {
   const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState('');
   const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [activeGuideTab, setActiveGuideTab] = useState('JOIN'); // 'JOIN' | 'FLAGWARS' | 'MOST_LIKELY' | 'JEALOUSY' | 'IMPOSTER' 
   
   
   // Oda & Oyun Durumları
@@ -487,81 +489,223 @@ export default function App() {
 
       {/* ================= 1. GİRİŞ EKRANI ================= */}
       {!roomCode && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-sm bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] relative z-10"
-        >
-          <div className="text-center mb-5">
-            <div className="inline-block transform -rotate-2 bg-yellow-300 border-4 border-slate-950 px-4 py-1.5 rounded-2xl shadow-[0_4px_0_#0f172a]">
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">
-                PARTY HUB 🎭
-              </h1>
-            </div>
-            <p className="text-xs font-black text-slate-500 mt-2 uppercase tracking-wider">Arkadaş Grubunun Kaos Durağı</p>
+        <div className="w-full max-w-sm flex flex-col items-center">
+          {/* ❓ NASIL OYNANIR BUTONU */}
+          <div className="w-full flex justify-end mb-2">
+            <button
+              type="button"
+              onClick={() => setShowHowToPlay(true)}
+              className="flex items-center gap-1.5 bg-white border-2 border-slate-950 px-3 py-1 rounded-2xl font-black text-xs text-slate-800 shadow-[0_3px_0_#0f172a] hover:bg-slate-50 active:translate-y-0.5 transition"
+            >
+              <span className="bg-yellow-300 w-4 h-4 rounded-full flex items-center justify-center text-[10px] border border-slate-950 font-black">?</span>
+              Nasıl Oynanır?
+            </button>
           </div>
 
-          <div className="space-y-4">
-            <div className="bg-slate-100 p-3.5 rounded-3xl border-2 border-slate-900/20">
-              <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 block mb-1 text-center">
-                ✨ Karakterini Tasarla
-              </label>
-              <AvatarBuilder onAvatarChange={(url) => setAvatar(url)} />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] relative z-10"
+          >
+            <div className="text-center mb-5">
+              <div className="inline-block transform -rotate-2 bg-yellow-300 border-4 border-slate-950 px-4 py-1.5 rounded-2xl shadow-[0_4px_0_#0f172a]">
+                <h1 className="text-3xl font-black tracking-tight text-slate-950">
+                  PARTY HUB 🎭
+                </h1>
+              </div>
+              <p className="text-xs font-black text-slate-500 mt-2 uppercase tracking-wider">Arkadaş Grubunun Kaos Durağı</p>
             </div>
 
-            <div>
-              <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 block mb-1">Kullanıcı Adın</label>
+            <div className="space-y-4">
+              <div className="bg-slate-100 p-3.5 rounded-3xl border-2 border-slate-900/20">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 block mb-1 text-center">
+                  ✨ Karakterini Tasarla
+                </label>
+                <AvatarBuilder onAvatarChange={(url) => setAvatar(url)} />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 block mb-1">Kullanıcı Adın</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Örn: KaosMakinesi"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    className="w-full bg-slate-100 border-2 border-slate-950 focus:border-pink-500 rounded-2xl px-4 py-3 text-sm focus:outline-none text-slate-900 placeholder-slate-400 font-black shadow-inner"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRandomNick}
+                    title="Rastgele İsim"
+                    className="bg-yellow-300 hover:bg-yellow-400 border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 px-4 rounded-2xl text-lg transition-all"
+                  >
+                    🎲
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCreateRoom}
+                className="w-full bg-pink-500 hover:bg-pink-400 text-white font-black text-base py-4 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md flex items-center justify-center gap-2 tracking-wide"
+              >
+                <span>👑</span> YENİ ODA KUR
+              </button>
+
+              <div className="flex items-center gap-3 my-1">
+                <div className="h-[2px] bg-slate-200 flex-1"></div>
+                <span className="text-[11px] uppercase font-black text-slate-400 tracking-wider">veya</span>
+                <div className="h-[2px] bg-slate-200 flex-1"></div>
+              </div>
+
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Örn: KaosMakinesi"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-slate-100 border-2 border-slate-950 focus:border-pink-500 rounded-2xl px-4 py-3 text-sm focus:outline-none text-slate-900 placeholder-slate-400 font-black shadow-inner"
+                  placeholder="KOD"
+                  value={roomCodeInput}
+                  onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
+                  maxLength={4}
+                  className="w-2/5 bg-slate-100 border-2 border-slate-950 focus:border-emerald-500 rounded-2xl px-3 py-3 text-base uppercase text-center font-black tracking-widest text-slate-900 placeholder-slate-400 focus:outline-none shadow-inner"
                 />
                 <button
-                  type="button"
-                  onClick={handleRandomNick}
-                  title="Rastgele İsim"
-                  className="bg-yellow-300 hover:bg-yellow-400 border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 px-4 rounded-2xl text-lg transition-all"
+                  onClick={handleJoinRoom}
+                  className="w-3/5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-sm py-3.5 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md flex items-center justify-center gap-1.5 tracking-wide"
                 >
-                  🎲
+                  ODAYA GİR <span>🚀</span>
                 </button>
               </div>
             </div>
-
-            <button
-              onClick={handleCreateRoom}
-              className="w-full bg-pink-500 hover:bg-pink-400 text-white font-black text-base py-4 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md flex items-center justify-center gap-2 tracking-wide"
-            >
-              <span>👑</span> YENİ ODA KUR
-            </button>
-
-            <div className="flex items-center gap-3 my-1">
-              <div className="h-[2px] bg-slate-200 flex-1"></div>
-              <span className="text-[11px] uppercase font-black text-slate-400 tracking-wider">veya</span>
-              <div className="h-[2px] bg-slate-200 flex-1"></div>
-            </div>
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="KOD"
-                value={roomCodeInput}
-                onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
-                maxLength={4}
-                className="w-2/5 bg-slate-100 border-2 border-slate-950 focus:border-emerald-500 rounded-2xl px-3 py-3 text-base uppercase text-center font-black tracking-widest text-slate-900 placeholder-slate-400 focus:outline-none shadow-inner"
-              />
-              <button
-                onClick={handleJoinRoom}
-                className="w-3/5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-sm py-3.5 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md flex items-center justify-center gap-1.5 tracking-wide"
-              >
-                ODAYA GİR <span>🚀</span>
-              </button>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       )}
+
+      {/* ================= 📖 NASIL OYNANIR REHBER MODALI ================= */}
+      <AnimatePresence>
+        {showHowToPlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-white border-4 border-slate-950 rounded-[32px] p-5 sm:p-6 shadow-[0_12px_0_#0f172a] max-h-[85vh] flex flex-col justify-between"
+            >
+              {/* Modal Başlık */}
+              <div className="flex justify-between items-center border-b-2 border-slate-200 pb-3">
+                <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  📖 Oyun Rehberi & Kurallar
+                </h2>
+                <button
+                  onClick={() => setShowHowToPlay(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 border-2 border-slate-950 font-black text-slate-700 hover:bg-rose-500 hover:text-white transition flex items-center justify-center text-sm shadow-[0_2px_0_#0f172a]"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Sekmeler (Tabs) */}
+              <div className="flex gap-1.5 overflow-x-auto py-3 no-scrollbar">
+                {[
+                  { id: 'JOIN', label: '🚀 Başlarken', color: 'bg-emerald-400' },
+                  { id: 'FLAGWARS', label: '🚩 FlagWars', color: 'bg-rose-500 text-white' },
+                  { id: 'MOST_LIKELY', label: '🪧 Kim Yapar?', color: 'bg-yellow-400' },
+                  { id: 'JEALOUSY', label: '🌡️ Kıskançlık', color: 'bg-purple-500 text-white' },
+                  { id: 'IMPOSTER', label: '🕵️‍♂️ Ajan Kim?', color: 'bg-indigo-600 text-white' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveGuideTab(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl border-2 border-slate-950 font-black text-xs whitespace-nowrap transition ${
+                      activeGuideTab === tab.id
+                        ? `${tab.color} shadow-[0_2px_0_#0f172a] -translate-y-0.5`
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sekme İçerikleri */}
+              <div className="flex-1 overflow-y-auto pr-1 text-slate-800 text-xs font-bold leading-relaxed space-y-3">
+                {activeGuideTab === 'JOIN' && (
+                  <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <p className="font-black text-sm text-emerald-700">🚀 Odaya Katılma ve Başlatma</p>
+                    <ul className="space-y-1.5 list-disc list-inside text-slate-700">
+                      <li>Önce kendine bir <b>Avatar</b> ve <b>Kullanıcı Adı</b> belirle.</li>
+                      <li><b>Oda Kur:</b> Yeni bir 4 haneli oda oluşturur. Arkadaşlarınla bu kodu paylaş!</li>
+                      <li><b>Odaya Katıl:</b> Arkadaşının paylaştığı 4 haneli kodu girerek lobiye dahil ol.</li>
+                      <li>Lobi ekranında oyuncuların profiline dokunarak onları ⚡ <b>dürtebilir</b> veya alt kısımdan emoji fırlatabilirsin.</li>
+                      <li>Oyun modunu ve tur sayısını sadece <b>👑 Kurucu</b> değiştirebilir.</li>
+                    </ul>
+                  </div>
+                )}
+
+                {activeGuideTab === 'FLAGWARS' && (
+                  <div className="space-y-2 bg-rose-50 p-3.5 rounded-2xl border border-rose-200">
+                    <p className="font-black text-sm text-rose-700">🚩 FlagWars (Swipe Modu)</p>
+                    <p>Ekrana gelen ilişki veya karakter senaryolarını oyla:</p>
+                    <ul className="space-y-1.5 list-disc list-inside text-slate-700">
+                      <li><b>Sola Kaydır / Sola Buton:</b> 🚩 Red Flag (Kabul edilemez, toksik veya falso).</li>
+                      <li><b>Sağa Kaydır / Sağa Buton:</b> 🟢 Green Flag (Normal, tatlı veya kabul edilebilir).</li>
+                      <li>Tüm oylar tamamlandığında gruptaki Red/Green flag yüzdesi ortaya çıkar!</li>
+                    </ul>
+                  </div>
+                )}
+
+                {activeGuideTab === 'MOST_LIKELY' && (
+                  <div className="space-y-2 bg-yellow-50 p-3.5 rounded-2xl border border-yellow-200">
+                    <p className="font-black text-sm text-amber-800">🪧 Kim Yapar? (Pankart Kaldırma)</p>
+                    <p>Ekrana gelen soruyu odadaki hangi arkadaşının yapmaya daha yatkın olduğunu seç:</p>
+                    <ul className="space-y-1.5 list-disc list-inside text-slate-700">
+                      <li>Herkes soruyu okur ve masadaki bir arkadaşının avatarına tıklar.</li>
+                      <li>Oylar açıldığında kimin kime oy verdiği ve masanın <b>"En Çok Seçileni"</b> gösterilir.</li>
+                    </ul>
+                  </div>
+                )}
+
+                {activeGuideTab === 'JEALOUSY' && (
+                  <div className="space-y-2 bg-purple-50 p-3.5 rounded-2xl border border-purple-200">
+                    <p className="font-black text-sm text-purple-800">🌡️ Kıskançlık & Toksiklik Metresi</p>
+                    <p>Gelen senaryo karşısında ne kadar kıskançlık veya tepki hissedeceğini puanla:</p>
+                    <ul className="space-y-1.5 list-disc list-inside text-slate-700">
+                      <li>Kaydırma çubuğu ile <b>1 (Hiç Umrumda Olmaz)</b> ile <b>10 (Kıyamet Kopar)</b> arasında puan ver.</li>
+                      <li>Tur sonunda masanın kıskançlık ortalaması ve en chill / en toksik tepkiyi verenler listelenir.</li>
+                    </ul>
+                  </div>
+                )}
+
+                {activeGuideTab === 'IMPOSTER' && (
+                  <div className="space-y-2 bg-indigo-50 p-3.5 rounded-2xl border border-indigo-200">
+                    <p className="font-black text-sm text-indigo-900">🕵️‍♂️ Ajan Kim? (Spyfall Gizli Kelime)</p>
+                    <ul className="space-y-1.5 list-disc list-inside text-slate-700">
+                      <li>Masumlar gizli kelimeyi görür, <b>Ajan</b> ise kelimeyi bilmez (sadece kategoriyi görür).</li>
+                      <li>Sırayla herkes kelimeyle alakalı tek bir <b>ipucu</b> yazar.</li>
+                      <li><b>Ajanın Amacı:</b> Çaktırmadan uyumlu ipuçları yazıp kelimeyi tahmin etmek veya masumları birbirine düşürmek.</li>
+                      <li><b>Erken Zafer:</b> Ajan gizli kelimeyi ipucu turunda doğrudan tahmin edip yazarsa anında oyunu kazanır!</li>
+                      <li>İpucu turları bitince oylama başlar; masumlar ajanı bulursa kazanır, bulamazsa ajan kazanır.</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Kapat Butonu */}
+              <div className="pt-3 border-t border-slate-200 mt-2">
+                <button
+                  onClick={() => setShowHowToPlay(false)}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-2xl border-2 border-slate-950 shadow-[0_4px_0_#0f172a] active:translate-y-0.5 transition text-xs uppercase tracking-wider"
+                >
+                  Anladım, Oyuna Dön 🎮
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ================= 2. LOBİ EKRANI ================= */}
       {roomCode && gameState === 'LOBBY' && (

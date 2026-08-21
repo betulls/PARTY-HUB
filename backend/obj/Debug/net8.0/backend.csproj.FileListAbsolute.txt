@@ -31,3 +31,4 @@ S:\FlagWars\backend\obj\Debug\net8.0\refint\backend.dll
 S:\FlagWars\backend\obj\Debug\net8.0\backend.pdb
 S:\FlagWars\backend\obj\Debug\net8.0\backend.genruntimeconfig.cache
 S:\FlagWars\backend\obj\Debug\net8.0\ref\backend.dll
+S:\FlagWars\backend\obj\Debug\net8.0\backend.sourcelink.json
