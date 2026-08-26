@@ -215,23 +215,26 @@ public async Task SubmitImposterClue(string roomCode, string clueText)
     await Clients.Group(roomCode).SendAsync("UpdateImposterClues", room.ImposterClues);
 
     // 🎯 BU TURDAKİ TÜM OYUNCULAR İPUCU VERDİ Mİ?
-    int currentRoundClueCount = room.ImposterClues.Count(c => c.RoundNumber == room.ImposterCurrentRound);
+   // 🎯 BU TURDAKİ TÜM OYUNCULAR İPUCU VERDİ Mİ?
+int currentRoundClueCount = room.ImposterClues.Count(c => c.RoundNumber == room.ImposterCurrentRound);
 
-    if (currentRoundClueCount >= room.Players.Count)
+if (currentRoundClueCount >= room.Players.Count)
+{
+    // ✅ 3 yerine odada belirlenen toplam tur sayısını kontrol et
+    int maxRounds = room.ImposterTotalRounds > 0 ? room.ImposterTotalRounds : 3;
+
+    if (room.ImposterCurrentRound < maxRounds)
     {
-        // 3 Tur tamamlanmadıysa bir sonraki tura geç
-        if (room.ImposterCurrentRound < 3)
-        {
-            room.ImposterCurrentRound++;
-            await Clients.Group(roomCode).SendAsync("StartNextClueRound", room.ImposterCurrentRound);
-        }
-        else
-        {
-            // 3 Tur bitti -> Frontend'in beklediği oylama sinyalini gönder!
-            room.GameState = "IMPOSTER_VOTE";
-            await Clients.Group(roomCode).SendAsync("ImposterStartVoting");
-        }
+        room.ImposterCurrentRound++;
+        await Clients.Group(roomCode).SendAsync("StartNextClueRound", room.ImposterCurrentRound);
     }
+    else
+    {
+        // Belirlenen tur (örn: 2 tur) bitti -> Oylamaya geç
+        room.GameState = "IMPOSTER_VOTE";
+        await Clients.Group(roomCode).SendAsync("ImposterStartVoting");
+    }
+}
 }
 
 
