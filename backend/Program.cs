@@ -25,4 +25,8 @@ app.UseCors("AllowAll");
 // 4. SignalR Hub Rotası
 app.MapHub<GameHub>("/gamehub");
 
-app.Run();
+// Render'ın bize verdiği dinamik portu alıyoruz, eğer yoksa 5184 kullanıyoruz.
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5184";
+
+// localhost yerine 0.0.0.0 kullanarak dış dünyadan (Render üzerinden) gelen isteklere kapıyı açıyoruz.
+app.Run($"http://0.0.0.0:{port}");
