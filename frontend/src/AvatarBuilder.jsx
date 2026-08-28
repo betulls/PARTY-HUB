@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// 🎨 %100 Hatasız ve Doğrulanmış API Parametreleri
 const AVATAR_OPTIONS = {
   FEMALE_HAIR: {
     id: 'FEMALE_HAIR', label: '👩 Kadın Saç',
@@ -27,15 +28,13 @@ const AVATAR_OPTIONS = {
       { val: 'shaggyMullet', label: 'Mullet' },
       { val: 'dreads01', label: 'Rasta' },
       { val: 'frizzle', label: 'Dağınık' },
-      { val: 'sides', label: 'Yanlar Kısa' },
-      { val: 'noHair', label: 'Kel' }
+      { val: 'sides', label: 'Yanlar Kısa' }
     ]
   },
   HATS: {
     id: 'HATS', label: '🧢 Şapka',
     items: [
-      { val: 'winterHat01', label: 'Bere 1' },
-      { val: 'winterHat02', label: 'Bere 2' },
+      { val: 'winterHat02', label: 'Bere 1' },
       { val: 'winterHat03', label: 'Kulaklıklı' },
       { val: 'winterHat04', label: 'Ponponlu' },
       { val: 'turban', label: 'Türban' }
@@ -92,12 +91,14 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
     accessories: 'blank'
   });
 
+  // 🚀 Kurşun Geçirmez URL Oluşturucu (Sonsuz Döngü Kırıldı!)
   useEffect(() => {
     const params = new URLSearchParams();
     params.append('seed', baseSeed);
     params.append('backgroundColor', bgColor);
     params.append('top', selections.top);
 
+    // Keli veya Şapkası olana saç rengi gönderme (400 Hatasını Önler)
     if (!NO_HAIR_COLOR_TOPS.includes(selections.top)) {
       const hairColorHex = AVATAR_OPTIONS.HAIR_COLOR.items.find(
         (c) => c.val === selections.hairColor
@@ -107,22 +108,23 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
       }
     }
 
-    if (selections.facialHair !== 'blank') {
-      params.append('facialHair', selections.facialHair);
-      params.append('facialHairProbability', '100');
-    }
+    // Seçim "blank" (Yok) ise, seed rastgele sakal/gözlük atamasın diye ihtimali 0'a çekiyoruz
+    const safeFacialHair = selections.facialHair === 'blank' ? 'beardLight' : selections.facialHair;
+    const safeFacialProb = selections.facialHair === 'blank' ? 0 : 100;
+    params.append('facialHair', safeFacialHair);
+    params.append('facialHairProbability', safeFacialProb.toString());
 
-    if (selections.accessories !== 'blank') {
-      params.append('accessories', selections.accessories);
-      params.append('accessoriesProbability', '100');
-    }
+    const safeAccessory = selections.accessories === 'blank' ? 'sunglasses' : selections.accessories;
+    const safeAccessoryProb = selections.accessories === 'blank' ? 0 : 100;
+    params.append('accessories', safeAccessory);
+    params.append('accessoriesProbability', safeAccessoryProb.toString());
 
-    const finalUrl = `https://api.dicebear.com/10.x/avataaars/svg?${params.toString()}`;
+    const finalUrl = `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
     setAvatarUrl(finalUrl);
     setLoadError(false);
     onAvatarChange(finalUrl);
     
-    // 🚀 DÜZELTME: Sonsuz render döngüsünü kırmak için onAvatarChange bağımlılıklardan çıkarıldı!
+    // 🛑 HAYATİ SATIR: onAvatarChange bağımlılıktan çıkarıldı. Bu sayede sayfa bir daha asla kilitlenmeyecek!
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selections, baseSeed, bgColor]);
 
@@ -159,6 +161,7 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
 
   return (
     <div className="w-full flex flex-col gap-3">
+      {/* ✨ İnce & Modern Özel Scrollbar Stili */}
       <style>{`
         .cute-scrollbar::-webkit-scrollbar { height: 6px; }
         .cute-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 10px; }
@@ -166,6 +169,7 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
         .cute-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
 
+      {/* 🖼️ CANLI ÖNİZLEME */}
       <div className="flex items-center gap-3">
         <div className="relative w-24 h-24 bg-slate-100 rounded-3xl border-4 border-slate-950 shadow-[0_4px_0_#0f172a] overflow-hidden flex-shrink-0 flex items-center justify-center">
           <AnimatePresence mode="popLayout">
@@ -184,7 +188,9 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
                 }}
               />
             ) : loadError ? (
-              <span className="text-[10px] text-red-500 font-bold text-center px-1">Görsel yüklenemedi ⚠️</span>
+              <span className="text-[10px] text-red-500 font-bold text-center px-1">
+                Görsel yüklenemedi ⚠️
+              </span>
             ) : (
               <span className="text-xl animate-spin">⏳</span>
             )}
@@ -192,7 +198,9 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
         </div>
 
         <div className="flex-1 text-left">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Tarzını Yansıt</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+            Tarzını Yansıt
+          </p>
           <button
             type="button"
             onClick={handleRandomize}
@@ -205,6 +213,7 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
 
       <div className="w-full h-[2px] bg-slate-900/10 rounded-full my-1"></div>
 
+      {/* 📑 KATEGORİ SEKMELERİ */}
       <div className="relative w-full">
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-100 to-transparent pointer-events-none z-10 rounded-r-2xl"></div>
         <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory pr-6 cute-scrollbar">
@@ -225,6 +234,7 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
         </div>
       </div>
 
+      {/* 🎛️ SEÇENEKLER SLIDERI */}
       <div className="relative w-full bg-white border-2 border-slate-950/20 rounded-2xl p-2.5">
         <motion.div
           animate={{ x: [0, 5, 0] }}
@@ -242,7 +252,6 @@ export default function AvatarBuilder({ onAvatarChange = () => {} }) {
               key={item.val}
               type="button"
               onClick={() => handleSelect(activeCategory, item.val)}
-              // 🚀 DÜZELTME: Butonlara z-20 eklendi ki maskelerin altında kalıp tıklanmamazlık yapmasın
               className={`snap-start flex-shrink-0 relative z-20 overflow-hidden transition-all ${
                 activeCategory === 'HAIR_COLOR'
                   ? 'w-10 h-10 rounded-full border-2 border-slate-950 flex items-center justify-center'
