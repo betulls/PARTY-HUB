@@ -10,6 +10,7 @@ public static class GameState
 
 public class Room
 {
+    public string LastImposterConnectionId { get; set; } = string.Empty;
     public string RoomCode { get; set; } = string.Empty;
     public string HostConnectionId { get; set; } = string.Empty;
     public string GameState { get; set; } = "LOBBY"; // LOBBY, VOTING, REVEAL, GAMEOVER

@@ -145,37 +145,48 @@ public async Task<bool> JoinRoom(string roomCode, string username, string avatar
 
         // 6. 🕵️‍♂️ Ajan Kim Başlatma
         public async Task StartImposterGame(string roomCode, string categoryKey, string secretWord, int rounds = 3)
+{
+    if (!Rooms.TryGetValue(roomCode, out var room)) return;
+
+    // En az 3 oyuncu kuralı
+    if (room.Players.Count < 3) return;
+
+    // 🚀 YENİ EKLENEN KISIM: Bir önceki oyundaki ajanı (eğer varsa) torbadan çıkarıyoruz
+    var eligiblePlayers = room.Players
+        .Where(p => p.ConnectionId != room.ImposterConnectionId)
+        .ToList();
+
+    // Güvenlik ağı: Odadan biri çıkmışsa ve geriye kalan herkes filtrelendiyse listeyi sıfırla
+    if (!eligiblePlayers.Any()) 
+    {
+        eligiblePlayers = room.Players; 
+    }
+
+    var random = new Random();
+    // Artık tüm oyuncular (room.Players) arasından değil, filtrelenmiş liste arasından seçiyoruz
+    var chosenImposter = eligiblePlayers[random.Next(eligiblePlayers.Count)];
+
+    room.ImposterCategory = categoryKey;
+    room.ImposterSecretWord = secretWord;
+    room.ImposterConnectionId = chosenImposter.ConnectionId; // Yeni ajanı sisteme kaydeder
+    room.ImposterTotalRounds = rounds;
+    room.ImposterCurrentRound = 1;
+    room.ImposterClues.Clear();
+    room.Votes.Clear();
+
+    foreach (var player in room.Players)
+    {
+        bool isImposter = player.ConnectionId == chosenImposter.ConnectionId;
+        await Clients.Client(player.ConnectionId).SendAsync("ImposterGameStarted", new
         {
-            if (!Rooms.TryGetValue(roomCode, out var room)) return;
-
-            // En az 3 oyuncu kuralı
-            if (room.Players.Count < 3) return;
-
-            var random = new Random();
-            var chosenImposter = room.Players[random.Next(room.Players.Count)];
-
-            room.ImposterCategory = categoryKey;
-            room.ImposterSecretWord = secretWord;
-            room.ImposterConnectionId = chosenImposter.ConnectionId;
-            room.ImposterTotalRounds = rounds;
-            room.ImposterCurrentRound = 1;
-            room.ImposterClues.Clear();
-            room.Votes.Clear();
-
-            foreach (var player in room.Players)
-            {
-                bool isImposter = player.ConnectionId == chosenImposter.ConnectionId;
-                await Clients.Client(player.ConnectionId).SendAsync("ImposterGameStarted", new
-                {
-                    category = categoryKey,
-                    secretWord = isImposter ? "???" : secretWord,
-                    isImposter = isImposter,
-                    totalRounds = rounds,
-                    currentRound = 1
-                });
-            }
-        }
-
+            category = categoryKey,
+            secretWord = isImposter ? "???" : secretWord,
+            isImposter = isImposter,
+            totalRounds = rounds,
+            currentRound = 1
+        });
+    }
+}
         // 7. 🕵️‍♂️ Ajan Kim İpucu Gönderme
 public async Task SubmitImposterClue(string roomCode, string clueText)
 {

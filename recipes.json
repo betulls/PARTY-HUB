@@ -1,0 +1,321 @@
+[
+  {
+    "id": 1,
+    "name": "Sütlü Domates Çorbası Tarifi Videosu",
+    "category": "Çorba",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "2 yemek kaşığı sıvı yağ",
+      "1 yemek kaşığı tereyağı",
+      "2 tepeleme yemek kaşığı un",
+      "1 yemek kaşığı domates salçası",
+      "5 adet domates",
+      "4 su bardağı su",
+      "Yarım su bardağı süt",
+      "1 silme tatlı kaşığı tuz"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/video/sutlu-domates-corbasi-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 2,
+    "name": "Ezogelin Çorbası Tarifi Video",
+    "category": "Çorba",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "1 yemek kaşığı sıvı yağ",
+      "1 yemek kaşığı tereyağı",
+      "1 adet kuru soğan",
+      "2 diş sarımsak",
+      "1 su bardağı kırmızı mercimek",
+      "1 kahve fincanı bulgur (4 yemek kaşığı)",
+      "Yarım kahve fincanı pirinç (2 yemek kaşığı)",
+      "6 su bardağı sıcak su + 2,5 su bardağı sıcak su",
+      "2 yemek kaşığı sıvıyağ",
+      "1 yemek kaşığı un",
+      "2 yemek kaşığı domates salçası",
+      "2 su bardağı sıcak su",
+      "1 tatlı kaşığı nane",
+      "1 çay kaşığı kırmızı pul biber",
+      "1 çay kaşığı karabiber",
+      "1,5 tatlı kaşığı kadar tuz"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/video/ezogelin-corbasi-tarifi-video/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 3,
+    "name": "Mantar Çorbası Tarifi",
+    "category": "Çorba",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "2 adet kuru soğan",
+      "10 adet mantar",
+      "4 yemek kaşığı sıvı yağ",
+      "1 yemek kaşığı tereyağı",
+      "2 yemek kaşığı un",
+      "1 litre sıcak su",
+      "1 su bardağı süt",
+      "Yarım çay kaşığı karabiber",
+      "1 tatlı kaşığı tuz",
+      "1 yemek kaşığı tereyağı",
+      "1 tatlı kaşığı kırmızı toz biber"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/video/mantar-corbasi-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 4,
+    "name": "Trakya Usulü Toz Tarhana Tarifi | Eski Usul Fermente – Kışlık Hazırlık ( Videolu )",
+    "category": "Çorba",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "2,5 kg un",
+      "2 kg kırmızı kapya biber",
+      "1,5 kg domates",
+      "2 adet büyük boy kuru soğan",
+      "1,5 su bardağı yoğurt",
+      "1 su bardağı süt",
+      "3 yemek kaşığı tuz"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/trakya-usulu-toz-tarhana-tarifi-eski-usul-fermente-kislik-hazirlik-videolu/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 5,
+    "name": "İki Kişilik Mercimek Çorbası Tarifi",
+    "category": "Çorba",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "1 çay bardağı kırmızı mercimek (yaklaşık 100 g)",
+      "1 küçük soğan",
+      "1 yemek kaşığı tereyağı veya zeytinyağı",
+      "1 yemek kaşığı un (isteğe bağlı daha kıvamlı olması için)",
+      "3 su bardağı su veya tavuk suyu",
+      "Tuz",
+      "Karabiber",
+      "1 çay kaşığı kimyon",
+      "1 yemek kaşığı tereyağı",
+      "1 çay kaşığı pul biber"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/iki-kisilik-mercimek-corbasi-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 6,
+    "name": "Bayatlamayan Şerit Poğaça Tarifi",
+    "category": "Ana Yemek",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "250 ml ılık süt",
+      "2 yemek kaşığı şeker",
+      "1 paket yaş maya",
+      "1 çay bardağı sıvı yağ",
+      "1 yumurta akı",
+      "2 tatlı kaşığı tuz",
+      "3 su bardağı un",
+      "Peynirli maydanozlu harç (isteğe göre farklı iç harç kullanabilirsiniz)",
+      "1 yumurta sarısı"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/bayatlamayan-serit-pogaca-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 7,
+    "name": "Rekor Kıran Kfc Tavuk Tarifi (Videolu)",
+    "category": "Ana Yemek",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "700 gr tavuk göğüs",
+      "1 adet yumurta",
+      "Yarım su bardağı süt",
+      "1 su bardağı un",
+      "1 diş dövülmüş sarımsak",
+      "1 çay kaşığı köri",
+      "1 çay kaşığı kırmızı biber",
+      "Yarım çay kaşığı kimyon",
+      "1 tatlı kaşığı tuz",
+      "1 büyük kase mısır gevreği",
+      "Sıvı yağ"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/rekor-kiran-kfc-tavuk-tarifi-videolu/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 8,
+    "name": "Kahvaltılık Pratik Poğaça Tarifi",
+    "category": "Ana Yemek",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "1 paket yaş maya",
+      "4 yemek kaşığı şeker",
+      "1 su bardağı ılık su",
+      "1 su bardağı ılık süt",
+      "1 su bardağı sıvı yağ",
+      "1 adet yumurta",
+      "1,5 tatlı kaşığı tuz",
+      "7 su bardağı un",
+      "Yumurta sarısı",
+      "Susam"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/kahvaltilik-pratik-pogaca-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 9,
+    "name": "Sıkma Torbası Kullanmadan Ekler Tarifi (Videolu)",
+    "category": "Ana Yemek",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "3 su bardağı süt",
+      "1 yumurta sarısı",
+      "2 yemek kaşığı un",
+      "2 yemek kaşığı mısır nişastası",
+      "1 çay bardağı toz şeker",
+      "1 paket vanilya",
+      "1 paket kremşanti",
+      "Yarım çay bardağı süt",
+      "125 gram tereyağı yada margarin",
+      "1.5 su bardağı su",
+      "1 su bardağı +1 yemek kaşığı un",
+      "4 adet (m) boy yumurta",
+      "Sütlü çikolata"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/sikma-torbasi-kullanmadan-ekler-tarifi-videolu/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 10,
+    "name": "Aranan Browni Tarifi",
+    "category": "Ana Yemek",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "200 gram bitter çikolata",
+      "200 gram pudra şekeri",
+      "100 gram tuzsuz tereyağı",
+      "3 yumurta",
+      "2 yemek kaşığı sıvı yağ",
+      "25 gram kakao",
+      "90 gram un",
+      "Bir çimdik tuz"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/aranan-browni-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 11,
+    "name": "Bayatlamayan Şerit Poğaça Tarifi",
+    "category": "Pratik",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "250 ml ılık süt",
+      "2 yemek kaşığı şeker",
+      "1 paket yaş maya",
+      "1 çay bardağı sıvı yağ",
+      "1 yumurta akı",
+      "2 tatlı kaşığı tuz",
+      "3 su bardağı un",
+      "Peynirli maydanozlu harç (isteğe göre farklı iç harç kullanabilirsiniz)",
+      "1 yumurta sarısı"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/bayatlamayan-serit-pogaca-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 12,
+    "name": "Rekor Kıran Kfc Tavuk Tarifi (Videolu)",
+    "category": "Pratik",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "700 gr tavuk göğüs",
+      "1 adet yumurta",
+      "Yarım su bardağı süt",
+      "1 su bardağı un",
+      "1 diş dövülmüş sarımsak",
+      "1 çay kaşığı köri",
+      "1 çay kaşığı kırmızı biber",
+      "Yarım çay kaşığı kimyon",
+      "1 tatlı kaşığı tuz",
+      "1 büyük kase mısır gevreği",
+      "Sıvı yağ"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/rekor-kiran-kfc-tavuk-tarifi-videolu/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 13,
+    "name": "Kahvaltılık Pratik Poğaça Tarifi",
+    "category": "Pratik",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "1 paket yaş maya",
+      "4 yemek kaşığı şeker",
+      "1 su bardağı ılık su",
+      "1 su bardağı ılık süt",
+      "1 su bardağı sıvı yağ",
+      "1 adet yumurta",
+      "1,5 tatlı kaşığı tuz",
+      "7 su bardağı un",
+      "Yumurta sarısı",
+      "Susam"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/kahvaltilik-pratik-pogaca-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 14,
+    "name": "Sıkma Torbası Kullanmadan Ekler Tarifi (Videolu)",
+    "category": "Pratik",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "3 su bardağı süt",
+      "1 yumurta sarısı",
+      "2 yemek kaşığı un",
+      "2 yemek kaşığı mısır nişastası",
+      "1 çay bardağı toz şeker",
+      "1 paket vanilya",
+      "1 paket kremşanti",
+      "Yarım çay bardağı süt",
+      "125 gram tereyağı yada margarin",
+      "1.5 su bardağı su",
+      "1 su bardağı +1 yemek kaşığı un",
+      "4 adet (m) boy yumurta",
+      "Sütlü çikolata"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/sikma-torbasi-kullanmadan-ekler-tarifi-videolu/",
+    "source": "Nefis Yemek Tarifleri"
+  },
+  {
+    "id": 15,
+    "name": "Aranan Browni Tarifi",
+    "category": "Pratik",
+    "prep_time_min": 30,
+    "raw_prep_time": "30 dk",
+    "ingredients": [
+      "200 gram bitter çikolata",
+      "200 gram pudra şekeri",
+      "100 gram tuzsuz tereyağı",
+      "3 yumurta",
+      "2 yemek kaşığı sıvı yağ",
+      "25 gram kakao",
+      "90 gram un",
+      "Bir çimdik tuz"
+    ],
+    "recipe_url": "https://www.nefisyemektarifleri.com/aranan-browni-tarifi/",
+    "source": "Nefis Yemek Tarifleri"
+  }
+]

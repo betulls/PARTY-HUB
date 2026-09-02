@@ -3,7 +3,13 @@ using flagwarsbackend;
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. SignalR Servisi
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    // Sunucu, telefondan 60 saniye boyunca ses gelmezse ancak o zaman düşürsün
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    // İletişimi hayatta tutmak için daha sık yoklama yapsın
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+});
 
 // 2. CORS Ayarları
 builder.Services.AddCors(options =>
