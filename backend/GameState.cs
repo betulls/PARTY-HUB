@@ -29,6 +29,9 @@ public class Room
     public int ImposterTotalRounds { get; set; } = 3;
     public int ImposterCurrentRound { get; set; } = 1;
     public List<ImposterClue> ImposterClues { get; set; } = new();
+
+    // 🧊 YENİ EKLENEN: Sabotajlı Wordle Alanları
+    public string WordleSecretWord { get; set; } = "";
 }
 
 public class Player
@@ -41,6 +44,16 @@ public class Player
     public int RedCount { get; set; } = 0;
     public int GreenCount { get; set; } = 0;
     public int TotalScore { get; set; } = 0;
+
+    // 🧊 YENİ EKLENEN: Sabotajlı Wordle Alanları
+    public int WordlePowerPoints { get; set; } = 0;
+    public bool IsFogged { get; set; } = false;
+    public int WordleGuessCount { get; set; } = 0;
+
+    // 🚀 YENİ: Hangi sütunlarda (0-4) yeşil bildiğini takip etmek için (Örn: [0, 2] gibi)
+    public HashSet<int> CorrectlyGuessedIndices { get; set; } = new HashSet<int>();
+    
+
 }
 
 public class VoteEntry

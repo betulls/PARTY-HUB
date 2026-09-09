@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QUESTIONS as FLAG_QUESTIONS } from './questions';
@@ -18,7 +18,6 @@ const RANDOM_NICKS = [
 ];
 
 // 🚀 SORULARI KARIŞTIRMAK İÇİN ÖZEL ALGORİTMA
-// Oda kodunu kullanarak karıştırır. Böylece odadaki herkes aynı rastgele soruları görür!
 const getSeededRandom = (seedStr) => {
   let h = 0xdeadbeef;
   for(let i = 0; i < seedStr.length; i++)
@@ -92,6 +91,18 @@ export default function App() {
   const [floatingEmojis, setFloatingEmojis] = useState([]);
   const [countdownNumber, setCountdownNumber] = useState(null);
 
+  // 🧊 WORDLE STATE'LERİ
+  const [wordleGuesses, setWordleGuesses] = useState([...Array(6)].map(() => ''));
+  const [wordleColors, setWordleColors] = useState([...Array(6)].map(() => Array(5).fill(-1))); 
+  const [currentWordleRow, setCurrentWordleRow] = useState(0);
+  const [myPowerPoints, setMyPowerPoints] = useState(0);
+  const [isFogged, setIsFogged] = useState(false);
+  const [opponentsProgress, setOpponentsProgress] = useState({});
+  const [wordleWinner, setWordleWinner] = useState(null);
+  const connectionRef = useRef(null);
+  const currentRowRef = useRef(currentWordleRow);
+  currentRowRef.current = currentWordleRow; // Her render'da güncel satırı tutar
+
   const calculateFlagStats = (resultData) => {
     const votes = resultData?.votes || resultData?.Votes || resultData?.roundVotes || [];
     if (!votes || votes.length === 0) {
@@ -114,7 +125,6 @@ export default function App() {
     return { redPercent, greenPercent, redPct: redPercent, greenPct: greenPercent, redCount, greenCount };
   };
 
-  // 🚀 DÜZELTME: Sorular artık oda koduna göre rastgele karıştırılıyor!
   const activeQuestions = useMemo(() => {
     let baseQuestions = FLAG_QUESTIONS || [];
     if (gameMode === 'MOST_LIKELY') {
@@ -130,14 +140,19 @@ export default function App() {
     : { text: "Soru yükleniyor...", category: "Genel" };
 
   useEffect(() => {
+    if (connectionRef.current) return;
+
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl(BACKEND_URL)
       .withAutomaticReconnect()
       .build();
 
+    connectionRef.current = newConnection;
+
     newConnection.start()
       .then(() => {
         setIsConnected(true);
+        setConnection(newConnection);
 
         newConnection.on('UpdatePlayers', (updatedPlayers) => {
           setPlayers(updatedPlayers);
@@ -266,16 +281,102 @@ export default function App() {
           setPokedMessage(`👑 Yeni Kurucu: ${newHostName}`);
           setTimeout(() => setPokedMessage(''), 3000);
         });
+
+        // 🧊 WORDLE SİNYALLERİ
+        newConnection.on('WordleGameStarted', () => {
+          setWordleGuesses(Array(6).fill(''));
+          setWordleColors([...Array(6)].map(() => Array(5).fill(-1)));
+          setCurrentWordleRow(0);
+          setMyPowerPoints(0);
+          setIsFogged(false); // Sis durumu sıfırlanır
+          setOpponentsProgress({});
+          setWordleWinner(null);
+          
+          triggerCountdown(() => {
+            setGameState('WORDLE');
+          });
+        });
+
+
+       newConnection.on('InvalidWord', (msg) => {
+          const row = currentRowRef.current; // 🚀 Hangi satırda hata aldıysak sadece o temizlenir
+          setWordleGuesses(prev => {
+            const newGuesses = [...prev];
+            newGuesses[row] = ''; 
+            return newGuesses;
+          });
+          
+          setPokedMessage(`⚠️ ${msg}`);
+          setTimeout(() => setPokedMessage(''), 2500);
+        });
+
+        newConnection.on('WordleGuessResult', (data) => {
+          const row = currentRowRef.current; // 🚀 Doğru kelimenin yazıldığı kesin satır
+          
+          setWordleColors(prev => {
+            const newColors = [...prev];
+            newColors[row] = data.colors; // Sadece o satır boyanır, üsttekilere dokunulmaz
+            return newColors;
+          });
+          
+          setMyPowerPoints(data.power);
+          setCurrentWordleRow(prev => Math.min(6, prev + 1)); // Bir alt satıra geçilir
+        });
+
+        newConnection.on('WordleOpponentGuess', (data) => {
+          setOpponentsProgress(prev => {
+            const playerProgress = prev[data.connectionId] || [];
+            return {
+              ...prev,
+              [data.connectionId]: [...playerProgress, data.colors]
+            };
+          });
+        });
+
+        newConnection.on('PowerPointsUpdated', (points) => {
+          setMyPowerPoints(points);
+        });
+
+        // 🌫️ SİS BOMBASI SİNALLERİ (Dondurma yerine bunlar geçerli)
+        newConnection.on('YouAreFogged', (seconds) => {
+          if (navigator.vibrate) try { navigator.vibrate([100, 50, 100, 50, 300]); } catch (e) {}
+          setIsScreenShaking(true);
+          setTimeout(() => setIsScreenShaking(false), 400);
+          
+          setIsFogged(true);
+          setPokedMessage('🌫️ SİS BOMBASI YEDİN!');
+          
+          setTimeout(() => {
+            setIsFogged(false);
+            setPokedMessage('');
+            newConnection.invoke('RemoveFog', roomCode);
+          }, seconds * 1000);
+        });
+
+        newConnection.on('SmokeSabotageFired', (data) => {
+          setPokedMessage(`🌫️ ${data.attackerName}, ${data.targetName}'e sis attı!`);
+          setTimeout(() => setPokedMessage(''), 3000);
+        });
+
+        newConnection.on('WordleGameOver', (data) => {
+          setWordleWinner(data);
+          setGameState('WORDLE_GAMEOVER');
+        });
+        newConnection.on('WordlePlayerFailed', (secretWord) => {
+          setWordleWinner({ winnerName: "Kimse", secretWord: secretWord });
+          setGameState('WORDLE_GAMEOVER');
+        });
       })
       .catch(err => {
         setIsConnected(false);
         console.error('SignalR Bağlantı Hatası:', err);
       });
 
-    setConnection(newConnection);
-
     return () => {
-      newConnection.stop();
+      if (connectionRef.current) {
+        connectionRef.current.stop();
+        connectionRef.current = null;
+      }
     };
   }, []);
 
@@ -312,6 +413,7 @@ export default function App() {
     }
   };
 
+  // 🚀 DÜZELTME: Süslü parantez doğru yerde kapatıldı
   const handleStartGame = () => {
     if (!connection || !isHost) return;
     if (gameMode === 'IMPOSTER' && players.length < 3) {
@@ -322,10 +424,84 @@ export default function App() {
       const cat = IMPOSTER_CATEGORIES[imposterCategory];
       const randomWord = cat.words[Math.floor(Math.random() * cat.words.length)];
       connection.invoke('StartImposterGame', roomCode, cat.label, randomWord, imposterRounds);
+    } else if (gameMode === 'WORDLE') {
+      connection.invoke('StartWordleGame', roomCode);
     } else {
       connection.invoke('StartGame', roomCode);
     }
   };
+
+  // 🧊 WORDLE: Sanal ve Fiziksel Klavye Girişleri
+  // Tuş basma fonksiyonu:
+const handleWordleKeyPress = (key) => {
+  if (isFogged) return;
+  const row = currentRowRef.current; // 🚀 Anlık güncel satırı alıyoruz
+  if (row >= 6 || gameState !== 'WORDLE') return;
+
+  if (key === 'ENTER') {
+    const currentGuess = wordleGuesses[row] || '';
+    if (currentGuess.length !== 5) {
+      setPokedMessage('⚠️ Kelime 5 harfli olmalı!');
+      setTimeout(() => setPokedMessage(''), 2000);
+      return;
+    }
+    connection.invoke('SubmitWordleGuess', roomCode, currentGuess);
+  }
+  else if (key === 'BACKSPACE' || key === '⌫') {
+    setWordleGuesses(prev => {
+      const newGuesses = [...prev];
+      newGuesses[row] = newGuesses[row].slice(0, -1);
+      return newGuesses;
+    });
+  }
+  else {
+    if (key.length === 1 && /^[a-zA-ZçğıöşüÇĞİÖŞÜ]$/i.test(key)) {
+      setWordleGuesses(prev => {
+        const newGuesses = [...prev];
+        if (newGuesses[row].length < 5) {
+          const upperKey = key.toLocaleUpperCase('tr-TR');
+          newGuesses[row] = newGuesses[row] + upperKey;
+        }
+        return newGuesses;
+      });
+    }
+  }
+};
+
+  // Bilgisayardan oynayanlar için fiziksel klavye desteği
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (gameState !== 'WORDLE' || showLeaveConfirm || showHowToPlay) return;
+      
+      if (e.key === 'Enter') {
+        e.preventDefault(); 
+        handleWordleKeyPress('ENTER');
+      } 
+      else if (e.key === 'Backspace') {
+        handleWordleKeyPress('BACKSPACE');
+      } 
+      else {
+        handleWordleKeyPress(e.key);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    
+  // 🚀 DÜZELTME BURADA: En sona wordleGuesses ve wordleColors eklendi!
+  }, [gameState, currentWordleRow, isFogged, showLeaveConfirm, showHowToPlay, wordleGuesses, wordleColors]);
+
+  const getWordleColorClass = (colorCode) => {
+    if (colorCode === 2) return 'bg-emerald-500 text-white border-emerald-600';
+    if (colorCode === 1) return 'bg-yellow-400 text-slate-900 border-yellow-500';
+    if (colorCode === 0) return 'bg-slate-500 text-white border-slate-600';
+    return 'bg-slate-50 border-slate-300 text-slate-900'; 
+  };
+
+  const KEYBOARD_ROWS = [
+  ['E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ğ', 'Ü'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'],
+  ['ENTER', 'Z', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç', '⌫']
+];
 
   const handleSendClue = () => {
     if (!connection || !currentClueInput.trim() || hasSentClueThisRound) return;
@@ -446,21 +622,14 @@ export default function App() {
 
   const mostVoted = getMostVotedPerson();
 
-  // 🚀 DÜZELTME: Oyun sonu "Kim Yapar" raporu için güvenli hesaplama ve LOG
   const getOverallMostVotedName = () => {
     if (!finalGameReport) return null;
 
-    // 🚨 HATA AYIKLAMA: F12 Konsolunda C#'tan gelen datanın tam yapısını görmek için
-    console.log("📊 OYUN SONU DATASI:", finalGameReport);
-
-    // 1. İhtimal: Backend (C#) direkt kazananı hesaplayıp gönderiyorsa
     if (finalGameReport.mostVoted) return { name: finalGameReport.mostVoted.username || finalGameReport.mostVoted.name, count: finalGameReport.mostVoted.count || finalGameReport.mostVoted.votes || finalGameReport.mostVoted.voteCount };
     if (finalGameReport.topTarget) return { name: finalGameReport.topTarget.username || finalGameReport.topTarget.name, count: finalGameReport.topTarget.voteCount || finalGameReport.topTarget.count };
     if (finalGameReport.theMostLikely) return { name: finalGameReport.theMostLikely.username, count: finalGameReport.theMostLikely.voteCount };
 
-    // 2. İhtimal: Backend geçmişi liste olarak gönderiyorsa biz hesaplıyoruz
     const history = finalGameReport.history || finalGameReport.History || finalGameReport.roundResults || finalGameReport.RoundResults;
-
     if (!history || history.length === 0) return null;
 
     const counts = {};
@@ -492,7 +661,6 @@ export default function App() {
   };
 
   return (
-    // 🚀 DİKKAT: Mobil scroll sorununu çözmek için `h-[100dvh] overflow-hidden` kullanıldı
     <div className={`h-[100dvh] w-full overflow-hidden party-bg-pattern text-slate-900 flex flex-col items-center justify-center p-4 relative select-none transition-transform duration-75 ${
       isScreenShaking ? 'translate-x-2 -translate-y-2 rotate-1' : ''
     }`}>
@@ -611,7 +779,6 @@ export default function App() {
 
       {/* ================= 1. GİRİŞ EKRANI ================= */}
       {!roomCode && (
-        // GİRİŞ EKRANI kapsayıcısı
         <div className="w-full max-w-sm flex flex-col items-center max-h-[95dvh] overflow-y-auto py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="w-full flex justify-end mb-2">
             <button
@@ -745,7 +912,8 @@ export default function App() {
                   { id: 'FLAGWARS', label: '🚩 FlagWars', color: 'bg-rose-500 text-white' },
                   { id: 'MOST_LIKELY', label: '🪧 Kim Yapar?', color: 'bg-yellow-400' },
                   { id: 'JEALOUSY', label: '🌡️ Kıskançlık', color: 'bg-purple-500 text-white' },
-                  { id: 'IMPOSTER', label: '🕵️‍♂️ Ajan Kim?', color: 'bg-indigo-600 text-white' }
+                  { id: 'IMPOSTER', label: '🕵️‍♂️ Ajan Kim?', color: 'bg-indigo-600 text-white' },
+                  { id: 'WORDLE', label: '🥶 Kelime Kaosu', color: 'bg-sky-500 text-white' }
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -821,6 +989,20 @@ export default function App() {
                     </ul>
                   </div>
                 )}
+                
+                {activeGuideTab === 'WORDLE' && (
+                  <div className="space-y-2 bg-sky-50 p-3.5 rounded-2xl border border-sky-200">
+                    <p className="font-black text-sm text-sky-800">🥶 Kelime Kaosu (Sabotajlı Wordle)</p>
+                    <p>Ortak bir 5 harfli gizli kelimeyi arkadaşlarından önce bul, rakiplerini sabote et!</p>
+                    <ul className="space-y-1.5 list-disc list-inside text-slate-700">
+                      <li>Tahmin yap. <b>Yeşil</b> harf doğru yerde, <b>Sarı</b> harf yanlış yerde demektir.</li>
+                      <li>Diğerlerinin yazdığı kelimeyi göremezsin ama renklerinin değişimini canlı izlersin.</li>
+                      <li>Bulduğun her <b>Yeşil harf</b> sana sabotaj enerjisi kazandırır.</li>
+                      <li>Enerji barını doldur, <b>Sabotaj</b> butonuna bas ve lider olan arkadaşının ekranını <b>5 saniyeliğine dondur!</b> 🥶</li>
+                      <li>Süresi içinde gizli kelimeyi ilk doğru tahmin eden turu kazanır.</li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-slate-200 mt-2">
@@ -838,7 +1020,6 @@ export default function App() {
 
       {/* ================= 2. LOBİ EKRANI ================= */}
       {roomCode && gameState === 'LOBBY' && (
-        // LOBİ EKRANI kapsayıcısı
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -937,6 +1118,23 @@ export default function App() {
                 🕵️‍♂️ Ajan Kim?
                 <span className="block text-[9px] font-bold mt-0.5 opacity-90">Gizli Kelime</span>
               </button>
+              
+              {/* YENİ EKLENEN: Sabotajlı Wordle Butonu */}
+              <button
+                type="button"
+                disabled={!isHost}
+                onClick={() => handleModeChange('WORDLE')}
+                className={`col-span-2 p-3 rounded-2xl border-2 border-slate-950 text-xs font-black transition-all text-left relative overflow-hidden ${
+                  gameMode === 'WORDLE'
+                    ? 'bg-sky-500 text-white border-b-4 shadow-md -translate-y-0.5'
+                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className="absolute top-0 right-0 bg-rose-600 text-white text-[9px] px-2 py-0.5 rounded-bl-lg animate-pulse">YENİ</span>
+                🥶 Sabotajlı Wordle
+                <span className="block text-[9px] font-bold mt-0.5 opacity-90">Kelimeyi bul, arkadaşlarının ekranını dondur!</span>
+              </button>
+
             </div>
           </div>
 
@@ -972,6 +1170,10 @@ export default function App() {
                     <option value={4}>4 Tur</option>
                   </select>
                 </div>
+              </div>
+            ) : gameMode === 'WORDLE' ? (
+              <div className="bg-sky-100 border-2 border-sky-300 rounded-2xl p-3 text-sky-900 text-[11px] font-black text-center shadow-inner">
+                Ortak gizli kelimeyi bulmaya çalış! Doğru harfler sana güç verir. Gücün dolduğunda rakiplerini dondurabilirsin! 🥶
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1615,7 +1817,6 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          // ✨ DÜZELTME: no-scrollbar yerine özel Tailwind sınıfları eklendi
           className="w-full max-w-md bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] space-y-4 text-center relative z-10 max-h-[85dvh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           <div>
@@ -1725,6 +1926,179 @@ export default function App() {
           </button>
         </motion.div>
       )}
+
+      {/* ================= 🧊 WORDLE: OYUN EKRANI ================= */}
+      {/* ================= 🧊 WORDLE: OYUN EKRANI ================= */}
+      {roomCode && gameState === 'WORDLE' && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md flex flex-col space-y-3 relative z-10 overflow-y-auto max-h-[85vh] no-scrollbar pb-10 px-1"
+        >
+          {/* SADE RAKİP AVATAR PANELİ (Mini ızgaralar tamamen kaldırıldı) */}
+          <div className="bg-slate-900 border-4 border-slate-950 p-3 rounded-3xl shadow-[0_6px_0_#0f172a] flex gap-3 overflow-x-auto no-scrollbar flex-shrink-0 items-center justify-center">
+            {players.filter(p => p.connectionId !== connection?.connectionId).map(p => {
+              const canSabotage = myPowerPoints >= 3;
+
+              return (
+                <div key={p.connectionId} className="flex flex-col items-center min-w-[70px] bg-slate-800 p-2.5 rounded-2xl border-2 border-slate-700 relative">
+                  <img src={p.avatar} alt="avatar" className={`w-12 h-12 rounded-full object-cover border-2 ${canSabotage ? 'border-sky-400 animate-pulse ring-4 ring-sky-400/50' : 'border-slate-500'}`} />
+                  <span className="text-[10px] font-black text-white truncate w-full text-center mt-1.5">{p.username}</span>
+                  
+                  {/* SABOTAJ GÜCÜ DOLUNCA (3/3) ÇIKAN SİS AT BUTONU */}
+                  {canSabotage && (
+                    <button 
+                      onClick={() => connection.invoke('SendSmokeSabotage', roomCode, p.connectionId)}
+                      className="absolute inset-0 bg-sky-500/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white border-2 border-sky-300 hover:bg-sky-400 transition cursor-pointer animate-bounce z-20"
+                    >
+                      <span className="text-xl drop-shadow-md mb-0.5">🌫️</span>
+                      <span className="text-[8px] font-black uppercase tracking-wider drop-shadow-md">SİS AT</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {players.length === 1 && (
+              <div className="text-[10px] text-slate-400 font-bold w-full text-center py-1">Tek başınasın, deneme yapıyorsun...</div>
+            )}
+          </div>
+
+          {/* OYUNCUNUN KENDİ WORDLE OYUN ALANI (Grid + Enerji + Klavye) */}
+          <div className="bg-white border-4 border-slate-950 p-4 rounded-3xl shadow-[0_12px_0_#0f172a] relative overflow-hidden">
+            
+            {/* 🌫️ SİS BOMBASI EFEKTİ (Rakip sana sis atınca harflerin/ekranın bulanıklaşır) */}
+            {isFogged && (
+              <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center border-4 border-sky-400 rounded-[28px] transition-all">
+                <span className="text-6xl animate-pulse mb-2">🌫️</span>
+                <span className="bg-sky-500 text-white font-black px-4 py-2 rounded-xl text-sm uppercase tracking-widest shadow-lg border-2 border-slate-950 text-center">
+                  GÖRÜŞ AÇIN KAPANDI!<br/><span className="text-[10px] font-bold">Önceki tahminlerin gizlendi...</span>
+                </span>
+              </div>
+            )}
+
+            {/* ENERJİ BARI */}
+            <div className="mb-4">
+              <div className="flex justify-between items-end mb-1 px-1">
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Sabotaj Gücü</span>
+                <span className="text-xs font-black text-sky-600">{myPowerPoints} / 3</span>
+              </div>
+              <div className="flex gap-1 h-3">
+                {[1, 2, 3].map(point => (
+                  <div key={point} className={`flex-1 rounded-full border border-slate-950 transition-all duration-300 ${myPowerPoints >= point ? 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]' : 'bg-slate-200'}`} />
+                ))}
+              </div>
+            </div>
+
+            {/* BÜYÜK WORDLE IZGARASI */}
+            <div className={`grid grid-rows-6 gap-2 w-full max-w-[280px] mx-auto mb-6 transition-all ${isFogged ? 'filter blur-[4px]' : ''}`}>
+              {[...Array(6)].map((_, rowIndex) => {
+                const isCurrentRow = rowIndex === currentWordleRow;
+                const guess = wordleGuesses[rowIndex] || '';
+                const colors = wordleColors[rowIndex];
+
+                return (
+                  <div key={rowIndex} className="grid grid-cols-5 gap-2">
+                    {[...Array(5)].map((_, colIndex) => {
+                      const letter = guess[colIndex] || '';
+                      const color = colors ? colors[colIndex] : -1;
+                      const isActive = isCurrentRow && colIndex === guess.length;
+
+                      return (
+                        <div 
+                          key={colIndex} 
+                          className={`aspect-square flex items-center justify-center text-3xl font-black rounded-2xl border-4 transition-all duration-300 ${getWordleColorClass(color)} ${isActive ? 'border-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.4)] scale-105' : 'border-slate-300'}`}
+                        >
+                          {letter}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* SANAL KLAVYE */}
+            <div className="w-full flex flex-col gap-1.5 mt-2 select-none">
+              {KEYBOARD_ROWS.map((row, rIdx) => (
+                <div key={rIdx} className="flex justify-center gap-1.5">
+                  {row.map(key => {
+                    const isActionKey = key === 'ENTER' || key === '⌫';
+                    return (
+                      <button
+                        key={key}
+                        onClick={(e) => {
+                          e.currentTarget.blur();
+                          handleWordleKeyPress(key);
+                        }}
+                        disabled={isFogged}
+                        className={`${isActionKey ? 'px-3 text-[10px]' : 'w-8 sm:w-10 text-sm'} h-12 bg-slate-200 hover:bg-slate-300 text-slate-950 font-black rounded-xl border-2 border-slate-950 border-b-4 active:border-b-2 active:translate-y-[2px] transition-all flex items-center justify-center disabled:opacity-50`}
+                      >
+                        {key}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ================= 🧊 WORDLE: OYUN SONU EKRANI ================= */}
+      {/* ================= 🧊 WORDLE: OYUN SONU Ekrani ================= */}
+      {roomCode && gameState === 'WORDLE_GAMEOVER' && wordleWinner && (() => {
+        const isWinner = wordleWinner.winnerName && wordleWinner.winnerName !== "Kimse";
+        
+        return (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-white border-4 border-slate-950 rounded-[36px] p-6 shadow-[0_12px_0_#0f172a] text-center relative z-10"
+          >
+            <div className="text-6xl animate-bounce mb-2">{isWinner ? '🏆' : '💀'}</div>
+            <h2 className="text-3xl font-black text-slate-950 uppercase tracking-tight">
+              {isWinner ? 'KELİME BULUNDU!' : 'HAKKIN BİTTİ!'}
+            </h2>
+            <p className="text-sm font-bold text-slate-500 mt-1 mb-6">
+              {isWinner ? `${wordleWinner.winnerName} kelimeyi doğru bildi!` : '6 hakkını doldurdun ve kelimeyi bulamadın.'}
+            </p>
+            
+            <div className={`border-4 p-4 rounded-3xl mb-6 shadow-inner ${isWinner ? 'bg-emerald-100 border-emerald-500' : 'bg-rose-100 border-rose-500'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-wider ${isWinner ? 'text-emerald-800' : 'text-rose-800'}`}>
+                {isWinner ? 'KAZANAN' : 'DURUM'}
+              </span>
+              <h3 className={`text-3xl font-black mt-1 truncate ${isWinner ? 'text-emerald-950' : 'text-rose-950'}`}>
+                {isWinner ? wordleWinner.winnerName : 'Kelime Bulunamadı ❌'}
+              </h3>
+            </div>
+
+            <div className="bg-slate-100 border-2 border-slate-950 p-4 rounded-3xl shadow-[0_4px_0_#0f172a]">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">GİZLİ KELİME NEYDİ?</span>
+              <div className="flex justify-center gap-2 mt-2">
+                {wordleWinner.secretWord.split('').map((letter, i) => (
+                  <div key={i} className={`w-10 h-10 flex items-center justify-center text-white border-2 border-slate-950 rounded-xl text-2xl font-black shadow-sm ${isWinner ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                    {letter}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {isHost ? (
+              <button
+                onClick={() => connection.invoke("ReturnToLobby", roomCode)}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 mt-6 rounded-2xl transition-all border-2 border-slate-950 border-b-4 border-b-slate-950 active:border-b-2 active:translate-y-0.5 shadow-md text-sm tracking-wider"
+              >
+                LOBİYE DÖN 🏠
+              </button>
+            ) : (
+              <div className="p-3 mt-6 bg-slate-100 border-2 border-slate-950 rounded-xl text-xs font-bold text-slate-500">
+                ⏳ Kurucunun lobiye dönmesi bekleniyor...
+              </div>
+            )}
+          </motion.div>
+        );
+      })()}
+
     </div>
   );
 }

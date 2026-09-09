@@ -248,6 +248,155 @@ if (currentRoundClueCount >= room.Players.Count)
 }
 }
 
+// Şimdilik test için statik bir kelime havuzu. (İleride bunu JSON'a veya veritabanına taşıyabiliriz)
+private static readonly List<string> WordleWords = new List<string> { 
+    "KABLO", "DEVRE", "EKRAN", "KALEM", "ROMAN", 
+    "HÜCRE", "VİRÜS", "BELLE", "GİZEM", "KURAL" 
+};
+
+public async Task StartWordleGame(string roomCode)
+{
+    if (!Rooms.TryGetValue(roomCode, out var room)) return;
+
+    var random = new Random();
+    room.WordleSecretWord = KelimeHavuzu.Kelimeler[random.Next(KelimeHavuzu.Kelimeler.Count)];
+
+    foreach (var player in room.Players)
+    {
+        player.WordlePowerPoints = 0;
+        player.IsFogged = false;
+        player.WordleGuessCount = 0;
+        player.CorrectlyGuessedIndices.Clear(); // 🚀 Listeyi sıfırla
+    }
+
+    await Clients.Group(roomCode).SendAsync("WordleGameStarted");
+}
+
+public async Task SubmitWordleGuess(string roomCode, string guess)
+{
+    if (!Rooms.TryGetValue(roomCode, out var room)) return;
+    var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+    if (player == null) return;
+
+    guess = guess.ToUpper(new System.Globalization.CultureInfo("tr-TR"));
+
+    if (!KelimeHavuzu.Kelimeler.Contains(guess))
+    {
+        await Clients.Caller.SendAsync("InvalidWord", "Geçersiz kelime!");
+        return;
+    }
+
+    int earnedPoints = 0;
+    int[] colors = new int[5] { 0, 0, 0, 0, 0 }; // Başlangıç hepsi gri (0)
+    string secret = room.WordleSecretWord;
+    
+    // Tekrar eden harfleri doğru yönetmek için gizli kelimedeki harflerin sayısını tutalım
+    char[] secretChars = secret.ToCharArray();
+    char[] guessChars = guess.ToCharArray();
+
+    // 1. Aşama: Önce YEŞİLLERİ bul ve yerleşenleri tüket
+    for (int i = 0; i < 5; i++)
+    {
+        if (guessChars[i] == secretChars[i])
+        {
+            colors[i] = 2; // Yeşil
+            secretChars[i] = '_'; // Bu harfi tükettik
+            guessChars[i] = '*';
+
+            if (!player.CorrectlyGuessedIndices.Contains(i))
+            {
+                player.CorrectlyGuessedIndices.Add(i);
+                earnedPoints += 1;
+            }
+        }
+    }
+
+    // 2. Aşama: SARIARI bul (kelimede geçiyor ama yanlış yerde)
+    for (int i = 0; i < 5; i++)
+    {
+        if (guessChars[i] == '*') continue; // Zaten yeşil olanlar atlanır
+
+        int index = Array.IndexOf(secretChars, guessChars[i]);
+        if (index != -1)
+        {
+            colors[i] = 1; // Sarı
+            secretChars[index] = '_'; // Bu harfi de tükettik
+        }
+        else
+        {
+            colors[i] = 0; // Gri
+        }
+    }
+
+    player.WordlePowerPoints = Math.Min(3, player.WordlePowerPoints + earnedPoints);
+    player.WordleGuessCount++;
+
+    await Clients.Caller.SendAsync("WordleGuessResult", new { 
+        colors = colors, 
+        power = player.WordlePowerPoints 
+    });
+
+    await Clients.GroupExcept(roomCode, Context.ConnectionId).SendAsync("WordleOpponentGuess", new {
+        connectionId = player.ConnectionId,
+        colors = colors
+    });
+
+    // 🏆 KAZANMA KONTROLÜ
+    if (colors.All(c => c == 2))
+    {
+        await Clients.Group(roomCode).SendAsync("WordleGameOver", new {
+            winnerName = player.Username,
+            secretWord = secret
+        });
+        return;
+    }
+
+    // 💀 HAK BİTME KONTROLÜ (6 tahmin doldu ve kelime bulunamadıysa)
+    if (player.WordleGuessCount >= 6)
+    {
+        await Clients.Caller.SendAsync("WordleGameOver", new {
+            winnerName = "Kimse", // Kimse kazanamadı
+            secretWord = secret
+        });
+    }
+}
+
+
+
+public async Task SendSmokeSabotage(string roomCode, string targetConnectionId)
+{
+    if (!Rooms.TryGetValue(roomCode, out var room)) return;
+
+    var attacker = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+    var target = room.Players.FirstOrDefault(p => p.ConnectionId == targetConnectionId);
+
+    if (attacker == null || target == null || attacker.WordlePowerPoints < 3 || target.IsFogged) return;
+
+    attacker.WordlePowerPoints = 0; // Enerjiyi sıfırla
+    target.IsFogged = true;
+
+    // Hedef oyuncuya 7 saniye sürecek sis bombası gönder
+    await Clients.Client(targetConnectionId).SendAsync("YouAreFogged", 7);
+
+    // Diğer herkese kimin kime sis attığını duyur
+    await Clients.GroupExcept(roomCode, Context.ConnectionId).SendAsync("SmokeSabotageFired", new {
+        attackerName = attacker.Username,
+        targetName = target.Username
+    });
+    
+    // Atanın güncel enerjisini (0) kendine geri gönder
+    await Clients.Caller.SendAsync("PowerPointsUpdated", attacker.WordlePowerPoints);
+}
+
+public async Task RemoveFog(string roomCode)
+{
+    if (!Rooms.TryGetValue(roomCode, out var room)) return;
+    var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+    if (player != null) player.IsFogged = false;
+}
+
+// React tarafında 5 saniye dolunca kilidi açmak için çağrılacak
+
 
         // 8. Oy Verme (Tüm Oyunlar İçin)
         public async Task SubmitVote(string roomCode, string choice)
