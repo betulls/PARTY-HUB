@@ -258,15 +258,26 @@ public async Task StartWordleGame(string roomCode)
 {
     if (!Rooms.TryGetValue(roomCode, out var room)) return;
 
+    // 🚀 GÜVENLİK KİLİDİ: Eğer API'den veri gelmediyse veya liste boşsa oyunu çökertme, yedek kelimeleri yükle
+    if (WordleDictionary.Kelimeler == null || WordleDictionary.Kelimeler.Count == 0)
+    {
+        WordleDictionary.Kelimeler = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
+        { 
+            "KİTAP", "KALEM", "SEVGİ", "ÇİÇEK", "BÖCEK" 
+        };
+        Console.WriteLine("[UYARI] API listesi boş olduğu için yedek kelimeler devreye girdi!");
+    }
+
     var random = new Random();
-    room.WordleSecretWord = KelimeHavuzu.Kelimeler[random.Next(KelimeHavuzu.Kelimeler.Count)];
+    // ElementAt metodu System.Linq gerektirir (Dosyanın en üstünde using System.Linq; olduğundan emin ol)
+    room.WordleSecretWord = WordleDictionary.Kelimeler.ElementAt(random.Next(WordleDictionary.Kelimeler.Count));
 
     foreach (var player in room.Players)
     {
         player.WordlePowerPoints = 0;
         player.IsFogged = false;
         player.WordleGuessCount = 0;
-        player.CorrectlyGuessedIndices.Clear(); // 🚀 Listeyi sıfırla
+        player.CorrectlyGuessedIndices.Clear();
     }
 
     await Clients.Group(roomCode).SendAsync("WordleGameStarted");
@@ -280,7 +291,7 @@ public async Task SubmitWordleGuess(string roomCode, string guess)
 
     guess = guess.ToUpper(new System.Globalization.CultureInfo("tr-TR"));
 
-    if (!KelimeHavuzu.Kelimeler.Contains(guess))
+    if (!WordleDictionary.Kelimeler.Contains(guess))
     {
         await Clients.Caller.SendAsync("InvalidWord", "Geçersiz kelime!");
         return;

@@ -31,6 +31,9 @@ app.UseCors("AllowAll");
 // 4. SignalR Hub Rotası
 app.MapHub<GameHub>("/gamehub");
 
+// 🚀 5. SUNUCU AYAĞA KALKARKEN KELİMELERİ API'DEN ÇEK (En kritik nokta burası)
+await WordleDictionary.LoadWordsFromApiAsync();
+
 // Render'ın bize verdiği dinamik portu alıyoruz, eğer yoksa 5184 kullanıyoruz.
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5184";
 

@@ -101,6 +101,7 @@ export default function App() {
   const [wordleWinner, setWordleWinner] = useState(null);
   const connectionRef = useRef(null);
   const currentRowRef = useRef(currentWordleRow);
+  const [keyboardColors, setKeyboardColors] = useState({}); // Örn: { 'A': 2, 'K': 0, 'E': 1 }
   currentRowRef.current = currentWordleRow; // Her render'da güncel satırı tutar
 
   const calculateFlagStats = (resultData) => {
@@ -311,17 +312,37 @@ export default function App() {
         });
 
         newConnection.on('WordleGuessResult', (data) => {
-          const row = currentRowRef.current; // 🚀 Doğru kelimenin yazıldığı kesin satır
-          
-          setWordleColors(prev => {
-            const newColors = [...prev];
-            newColors[row] = data.colors; // Sadece o satır boyanır, üsttekilere dokunulmaz
-            return newColors;
-          });
-          
-          setMyPowerPoints(data.power);
-          setCurrentWordleRow(prev => Math.min(6, prev + 1)); // Bir alt satıra geçilir
-        });
+  const targetRow = currentRowRef.current;
+  
+  // 1. Izgaradaki renkleri güncelle
+  setWordleColors(prev => {
+    const newColors = [...prev];
+    newColors[targetRow] = data.colors;
+    return newColors;
+  });
+
+  // 2. SANAL KLAVYEYİ BOYAMA
+  setKeyboardColors(prev => {
+    const newKColors = { ...prev };
+    // O an yazdığımız kelimeyi alıyoruz
+    const guessedWord = wordleGuesses[targetRow]; 
+    
+    for (let i = 0; i < 5; i++) {
+      const char = guessedWord[i];
+      const colorCode = data.colors[i]; // 2: Yeşil, 1: Sarı, 0: Gri
+      
+      // Harf zaten yeşilse dokunma, zaten sarıysa griye düşürme
+      if (newKColors[char] === 2) continue;
+      if (newKColors[char] === 1 && colorCode === 0) continue;
+      
+      newKColors[char] = colorCode;
+    }
+    return newKColors;
+  });
+
+  setMyPowerPoints(data.power);
+  setCurrentWordleRow(prev => Math.min(6, prev + 1));
+});
 
         newConnection.on('WordleOpponentGuess', (data) => {
           setOpponentsProgress(prev => {
@@ -431,6 +452,54 @@ export default function App() {
     }
   };
 
+  const getKeyboardColorClass = (char) => {
+    let status = -1; // -1: Henüz basılmadı, 0: Gri, 1: Sarı, 2: Yeşil
+
+    // Yukarıdaki 6 satırlık ızgarayı tarayıp harfin en iyi rengini buluyoruz
+    for (let row = 0; row < 6; row++) {
+      const guess = wordleGuesses[row];
+      const colors = wordleColors[row];
+      
+      // Satır boşsa veya henüz renk gelmediyse atla
+      if (!guess || !colors || colors[0] === -1) continue;
+      
+      for (let col = 0; col < 5; col++) {
+        if (guess[col] === char) {
+          const colorCode = colors[col];
+          // Eğer harf yeşilse direkt yeşil yap (en yüksek öncelik)
+          if (colorCode === 2) {
+            status = 2;
+          } 
+          // Eğer harf sarıysa ve daha önce yeşil olmadıysa sarı yap
+          else if (colorCode === 1 && status !== 2) {
+            status = 1;
+          } 
+          // Eğer harf griyse ve daha önce sarı veya yeşil olmadıysa gri yap
+          else if (colorCode === 0 && status === -1) {
+            status = 0;
+          }
+        }
+      }
+    }
+
+    // Bulduğumuz renge göre klavye tuşunun tasarımını döndürüyoruz
+    if (status === 2) return 'bg-emerald-500 text-white border-emerald-600 shadow-inner'; // YEŞİL
+    if (status === 1) return 'bg-yellow-400 text-slate-900 border-yellow-500 shadow-inner'; // SARI
+    if (status === 0) return 'bg-slate-500 text-white border-slate-600 opacity-70'; // GRİ
+    return 'bg-slate-200 text-slate-950 border-slate-950 hover:bg-slate-300'; // VARSAYILAN (Basılmamış)
+  };
+
+  // MOBİL KLAVYEYİ TETİKLEYEN GİZLİ İNPUT REFERANSI
+  const hiddenInputRef = useRef(null);
+
+  // EKRANA TIKLANDIĞINDA ÇALIŞACAK FONKSİYON
+  const handleScreenClick = () => {
+    // Sadece Wordle oynanırken tıklanırsa çalışsın
+    if (hiddenInputRef.current && gameState === 'WORDLE') {
+      hiddenInputRef.current.focus();
+    }
+  };
+  
   // 🧊 WORDLE: Sanal ve Fiziksel Klavye Girişleri
   // Tuş basma fonksiyonu:
 const handleWordleKeyPress = (key) => {
@@ -661,7 +730,7 @@ const handleWordleKeyPress = (key) => {
   };
 
   return (
-    <div className={`h-[100dvh] w-full overflow-hidden party-bg-pattern text-slate-900 flex flex-col items-center justify-center p-4 relative select-none transition-transform duration-75 ${
+    <div className={`min-h-[100dvh] w-full overflow-y-auto party-bg-pattern text-slate-900 flex flex-col items-center p-4 pb-20 relative select-none transition-transform duration-75 ${
       isScreenShaking ? 'translate-x-2 -translate-y-2 rotate-1' : ''
     }`}>
       
@@ -1926,16 +1995,15 @@ const handleWordleKeyPress = (key) => {
           </button>
         </motion.div>
       )}
-
-      {/* ================= 🧊 WORDLE: OYUN EKRANI ================= */}
       {/* ================= 🧊 WORDLE: OYUN EKRANI ================= */}
       {roomCode && gameState === 'WORDLE' && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md flex flex-col space-y-3 relative z-10 overflow-y-auto max-h-[85vh] no-scrollbar pb-10 px-1"
+          className="w-full max-w-md flex flex-col space-y-3 relative z-10 pb-10 px-1"
         >
-          {/* SADE RAKİP AVATAR PANELİ (Mini ızgaralar tamamen kaldırıldı) */}
+          
+          {/* SADE RAKİP AVATAR PANELİ */}
           <div className="bg-slate-900 border-4 border-slate-950 p-3 rounded-3xl shadow-[0_6px_0_#0f172a] flex gap-3 overflow-x-auto no-scrollbar flex-shrink-0 items-center justify-center">
             {players.filter(p => p.connectionId !== connection?.connectionId).map(p => {
               const canSabotage = myPowerPoints >= 3;
@@ -1945,7 +2013,7 @@ const handleWordleKeyPress = (key) => {
                   <img src={p.avatar} alt="avatar" className={`w-12 h-12 rounded-full object-cover border-2 ${canSabotage ? 'border-sky-400 animate-pulse ring-4 ring-sky-400/50' : 'border-slate-500'}`} />
                   <span className="text-[10px] font-black text-white truncate w-full text-center mt-1.5">{p.username}</span>
                   
-                  {/* SABOTAJ GÜCÜ DOLUNCA (3/3) ÇIKAN SİS AT BUTONU */}
+                  {/* SABOTAJ GÜCÜ DOLUNCA ÇIKAN SİS AT BUTONU */}
                   {canSabotage && (
                     <button 
                       onClick={() => connection.invoke('SendSmokeSabotage', roomCode, p.connectionId)}
@@ -1963,10 +2031,10 @@ const handleWordleKeyPress = (key) => {
             )}
           </div>
 
-          {/* OYUNCUNUN KENDİ WORDLE OYUN ALANI (Grid + Enerji + Klavye) */}
+          {/* OYUNCUNUN KENDİ WORDLE OYUN ALANI */}
           <div className="bg-white border-4 border-slate-950 p-4 rounded-3xl shadow-[0_12px_0_#0f172a] relative overflow-hidden">
             
-            {/* 🌫️ SİS BOMBASI EFEKTİ (Rakip sana sis atınca harflerin/ekranın bulanıklaşır) */}
+            {/* 🌫️ SİS BOMBASI EFEKTİ */}
             {isFogged && (
               <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center border-4 border-sky-400 rounded-[28px] transition-all">
                 <span className="text-6xl animate-pulse mb-2">🌫️</span>
@@ -2023,6 +2091,8 @@ const handleWordleKeyPress = (key) => {
                 <div key={rIdx} className="flex justify-center gap-1.5">
                   {row.map(key => {
                     const isActionKey = key === 'ENTER' || key === '⌫';
+                    const colorClass = getKeyboardColorClass(key); 
+                    
                     return (
                       <button
                         key={key}
@@ -2031,7 +2101,7 @@ const handleWordleKeyPress = (key) => {
                           handleWordleKeyPress(key);
                         }}
                         disabled={isFogged}
-                        className={`${isActionKey ? 'px-3 text-[10px]' : 'w-8 sm:w-10 text-sm'} h-12 bg-slate-200 hover:bg-slate-300 text-slate-950 font-black rounded-xl border-2 border-slate-950 border-b-4 active:border-b-2 active:translate-y-[2px] transition-all flex items-center justify-center disabled:opacity-50`}
+                        className={`${isActionKey ? 'px-3 text-[10px]' : 'w-8 sm:w-10 text-sm'} h-12 font-black rounded-xl border-2 border-slate-950 border-b-4 active:border-b-2 active:translate-y-[2px] transition-all flex items-center justify-center disabled:opacity-50 ${colorClass}`}
                       >
                         {key}
                       </button>
